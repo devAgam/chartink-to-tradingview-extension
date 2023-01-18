@@ -11,3 +11,7 @@ Chartink provides great screening tools but lacks a good charting tool, whereas 
 The Firefox extension is submitted but still under review; I will update the URL as soon as it's live.
 
 Made by Pennytalks discord server
+
+# How to install
+
+[Official Firefox Guide](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Your_first_WebExtension#installing)
