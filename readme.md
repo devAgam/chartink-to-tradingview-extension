@@ -20,7 +20,7 @@ Made by Pennytalks discord server
 
 1.  Download the files, [here](https://codeload.github.com/devAgam/chartink-to-tradingview-firefox-extension/zip/refs/heads/main).
 2.  Unarchive/Extract the download file.
-3.  Go to this [link](about:debugging).
+3.  Go to this link `about:debugging` .
     ![about:debugging page](https://stonk-code-assets.s3.ap-south-1.amazonaws.com/Screenshot+2023-01-19+at+10.31.58+AM.png "about:debugging")
 4.  Go to the "This Firefox" section through the left navigation bar.
     ![about:debugging page](https://stonk-code-assets.s3.ap-south-1.amazonaws.com/Screenshot+2023-01-19+at+10.36.20+AM.png "about:debugging")
