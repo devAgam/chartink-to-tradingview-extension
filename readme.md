@@ -4,14 +4,14 @@ This is a firefox extension meant to redirect chart links in Chartink Scanner ou
 
 Chartink provides great screening tools but lacks a good charting tool, whereas TradingView has an average screener but an excellent charting system. So this extension aims to bridge the gap between the two services.
 
+~~The Firefox extension is submitted but still under review; I will update the URL as soon as it's live.~~
+
 The extesion is live 🎉
 [Firefox Store](https://addons.mozilla.org/en-US/firefox/addon/chartink-to-tradingview/)
 
 \*This extension only works with chartink and supports only NSE stocks.
 
 ---
-
-~~The Firefox extension is submitted but still under review; I will update the URL as soon as it's live.~~
 
 Made by Pennytalks discord server
 
