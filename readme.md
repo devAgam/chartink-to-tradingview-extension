@@ -7,6 +7,7 @@ Chartink provides great screening tools but lacks a good charting tool, whereas 
 ~~The Firefox extension is submitted but still under review; I will update the URL as soon as it's live.~~
 
 The extesion is live 🎉
+
 [Firefox Store](https://addons.mozilla.org/en-US/firefox/addon/chartink-to-tradingview/)
 
 \*This extension only works with chartink and supports only NSE stocks.
