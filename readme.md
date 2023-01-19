@@ -19,7 +19,7 @@ Made by Pennytalks discord server
 
 [Official Firefox Guide](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Your_first_WebExtension#installing)
 
-## Steps to install (Firefox)
+## Steps to install (Firefox) (Development Purposes Only)
 
 1. Download the files, [here](https://codeload.github.com/devAgam/chartink-to-tradingview-firefox-extension/zip/refs/heads/main).
 
