@@ -27,16 +27,18 @@ var config = {
 
 observer.observe(document.body, config);
 
-// chart ink screener button parent div 
-const screenerButtonsParentDiv = "dt-buttons btn-group"
-
 // chart ink screener button class
-const screenerButtonsClass = "btn btn-default btn-primary"
+const screenerButtonsClass = "btn btn-default btn-primary";
 
 // add a button to the screener
-const addScreenerButton = (buttonText, buttonClass, buttonId, buttonFunction) => {
+const addScreenerButton = (
+  buttonText,
+  buttonClass,
+  buttonId,
+  buttonFunction
+) => {
   const screenerButtons = document.getElementsByClassName(screenerButtonsClass);
-  if(screenerButtons.length === 0) return;
+  if (screenerButtons.length === 0) return;
   const screenerButtonsParent = screenerButtons[0].parentNode;
   const screenerButton = document.createElement("button");
   screenerButton.innerHTML = buttonText;
@@ -44,36 +46,44 @@ const addScreenerButton = (buttonText, buttonClass, buttonId, buttonFunction) =>
   screenerButton.id = buttonId;
   screenerButton.onclick = buttonFunction;
   screenerButtonsParent.appendChild(screenerButton);
-}
+};
 
 // add a button to the screener
-addScreenerButton("Copy to TradingView", "btn btn-default btn-primary", "add-to-watchlist", copyAllTickersOnScreen)
+addScreenerButton(
+  "Copy to TradingView",
+  "btn btn-default btn-primary",
+  "add-to-watchlist",
+  copyAllTickersOnScreen
+);
 
 function copyAllTickersOnScreen() {
-// get all a tags with href starting with tradingview
-  const allTickers = document.querySelectorAll('a[href^="https://in.tradingview.com/chart/?symbol=NSE:"]');
+  // get all a tags with href starting with tradingview
+  const allTickers = document.querySelectorAll(
+    'a[href^="https://in.tradingview.com/chart/?symbol=NSE:"]'
+  );
   const allTickersArray = [];
 
   // get all tickers from the a tags
   allTickers.forEach((ticker) => {
-    allTickersArray.push(replaceSpecialCharsWithUnderscore(ticker.href.substring(45)));
+    allTickersArray.push(
+      replaceSpecialCharsWithUnderscore(ticker.href.substring(45))
+    );
   });
-  createFakeTextAreaToCopyText(removeDuplicateTickers(allTickersArray).join(","));
-  replaceButtonText("add-to-watchlist", );
-  
+  createFakeTextAreaToCopyText(
+    removeDuplicateTickers(allTickersArray).join(",")
+  );
+  replaceButtonText("add-to-watchlist");
 }
 
 // replace button text for 2 seconds
 function replaceButtonText(buttonId) {
   const button = document.getElementById(buttonId);
   if (!button) return;
-  console.log(button.innerHTML)
   button.innerHTML = "Copied to clipboard 📋";
   setTimeout(() => {
-   button.innerHTML = "Copy to TradingView";
- }, 2000);
+    button.innerHTML = "Copy to TradingView";
+  }, 2000);
 }
-
 
 function createFakeTextAreaToCopyText(text) {
   const fakeTextArea = document.createElement("textarea");
@@ -92,25 +102,33 @@ function replaceSpecialCharsWithUnderscore(ticker) {
   return ticker.replace(/[^a-zA-Z0-9]/g, "_");
 }
 
-// dashboard ui 
-const dashboardSectionHeadingDivParent = "flex flex-col";
+const addCopyBtOnTradingView = () => {
+  // add an onclick alert to all the <i> tags wit class "far fa-copy mr-1"
+  const copyBts = document.querySelectorAll('i[class="far fa-copy mr-1"]');
+  copyBts.forEach((copyBt) => {
+    copyBt.style.fontSize = "20px";
+    // add an onclick event
+    copyBt.onclick = (e) => {
+      e.stopPropagation();
+      const tables =
+        copyBt.parentNode.parentNode.parentNode.parentNode.parentNode.querySelector(
+          "table"
+        );
+      const allTickers = tables.querySelectorAll(
+        'a[href^="https://in.tradingview.com/chart/?symbol=NSE:"]'
+      );
+      const allTickersArray = [];
 
-// add a copy bt to the dashboard section heading
-const addCopyBtOnTradingView = (sectionHeadingDivParent) => {
-  const dashboardSectionHeadingDiv = document.getElementsByClassName(sectionHeadingDivParent);
-  for (let i = 0; i < dashboardSectionHeadingDiv.length; i++) {
-    const dashboardSectionHeading = dashboardSectionHeadingDiv[i];
-    if (dashboardSectionHeading.children[0].tagName !== "H1") continue;
-    const copyEmoji = document.createElement("button");
-    copyEmoji.innerHTML = "Copy to Trading View 📋";
-    copyEmoji.className = "add-to-watchlist";
-    copyEmoji.style = "font-size:14px; cursor: pointer; background-color: #f5f5f5; padding: 5px; border-radius: 5px;"
-    copyEmoji.id = `add-to-watchlist`;
-    copyEmoji.onclick = () => { 
-      copyAllTickersOnScreen();
-      alert("Copied to clipboard 📋");
-    }
-    dashboardSectionHeading.appendChild(copyEmoji);
-  }
-}
-addCopyBtOnTradingView(dashboardSectionHeadingDivParent);
+      // get all tickers from the a tags
+      allTickers.forEach((ticker) => {
+        allTickersArray.push(
+          replaceSpecialCharsWithUnderscore(ticker.href.substring(45))
+        );
+      });
+      createFakeTextAreaToCopyText(
+        removeDuplicateTickers(allTickersArray).join(",")
+      );
+    };
+  });
+};
+addCopyBtOnTradingView();
