@@ -128,6 +128,7 @@ const addCopyBtOnTradingView = () => {
       createFakeTextAreaToCopyText(
         removeDuplicateTickers(allTickersArray).join(",")
       );
+      alert("Copied to clipboard 📋");
     };
   });
 };
