@@ -1,7 +1,13 @@
 window.onload = function () {
   changeURL();
 };
-
+const dateHeader =
+  "### " +
+  new Date().toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 function changeURL() {
   var links = document.querySelectorAll('a[href^="/stocks"]');
   for (var i = 0; i < links.length; i++) {
@@ -64,7 +70,7 @@ function copyAllTickersOnScreen() {
   const allTickers = document.querySelectorAll(
     'a[href^="https://in.tradingview.com/chart/?symbol=NSE:"]'
   );
-  const allTickersArray = [];
+  const allTickersArray = [dateHeader]; // add date header as tradingview watch list header as requested by Pattabhi Chekka
 
   // get all tickers from the a tags
   allTickers.forEach((ticker) => {
@@ -121,7 +127,7 @@ const addCopyBtOnTradingView = () => {
       const allTickers = tables.querySelectorAll(
         'a[href^="https://in.tradingview.com/chart/?symbol=NSE:"]'
       );
-      const allTickersArray = [];
+      const allTickersArray = [dateHeader];
 
       // get all tickers from the a tags
       allTickers.forEach((ticker) => {
