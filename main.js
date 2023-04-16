@@ -69,7 +69,7 @@ function copyAllTickersOnScreen() {
   const allTickers = document.querySelectorAll(
     'a[href^="https://in.tradingview.com/chart/?symbol=NSE:"]'
   );
-  const allTickersArray = [dateHeader]; // date header is added to the top of the list for trading view WL header, as request by Pattabhi Chekka
+  let allTickersArray = [dateHeader]; // date header is added to the top of the list for trading view WL header, as request by Pattabhi Chekka
 
   // get all tickers from the a tags
   allTickers.forEach((ticker) => {
@@ -77,6 +77,8 @@ function copyAllTickersOnScreen() {
       replaceSpecialCharsWithUnderscore(ticker.href.substring(45))
     );
   });
+  // add :NSE to the tickers
+  allTickersArray = addColenNSEtoTickers(allTickersArray);
   createFakeTextAreaToCopyText(
     removeDuplicateTickers(allTickersArray).join(",")
   );
@@ -105,7 +107,9 @@ function createFakeTextAreaToCopyText(text) {
 function removeDuplicateTickers(tickers) {
   return [...new Set(tickers)];
 }
-
+function addColenNSEtoTickers(tickers) {
+  return tickers.map((ticker) => "NSE:" + ticker);
+}
 function replaceSpecialCharsWithUnderscore(ticker) {
   return ticker.replace(/[^a-zA-Z0-9]/g, "_");
 }
@@ -114,6 +118,8 @@ const addCopyBtOnTradingView = () => {
   // add an onclick alert to all the <i> tags wit class "far fa-copy mr-1"
   const copyBts = document.querySelectorAll('i[class="far fa-copy mr-1"]');
   copyBts.forEach((copyBt) => {
+    // add ononclick event to the sibling span tag
+
     copyBt.style.fontSize = "20px";
     // add an onclick event
     copyBt.onclick = (e) => {
@@ -125,7 +131,7 @@ const addCopyBtOnTradingView = () => {
       const allTickers = tables.querySelectorAll(
         'a[href^="https://in.tradingview.com/chart/?symbol=NSE:"]'
       );
-      const allTickersArray = [dateHeader];
+      let allTickersArray = [dateHeader];
 
       // get all tickers from the a tags
       allTickers.forEach((ticker) => {
@@ -133,6 +139,8 @@ const addCopyBtOnTradingView = () => {
           replaceSpecialCharsWithUnderscore(ticker.href.substring(45))
         );
       });
+      // add :NSE to the tickers
+      allTickersArray = addColenNSEtoTickers(allTickersArray);
       createFakeTextAreaToCopyText(
         removeDuplicateTickers(allTickersArray).join(",")
       );
