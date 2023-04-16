@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Chartink To TradingView",
-  "version": "1.7",
+  "version": "1.8",
   "description": "Redirects Chartink Symbol Links to TradingView Chart",
   "icons": {
     "48": "icons/logo.png"
