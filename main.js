@@ -70,14 +70,15 @@ function copyAllTickersOnScreen() {
   const allTickers = document.querySelectorAll(
     'a[href^="https://in.tradingview.com/chart/?symbol=NSE:"]'
   );
-  const allTickersArray = [dateHeader]; // add date header as tradingview watch list header as requested by Pattabhi Chekka
-
+  let allTickersArray = [dateHeader]; // date header is added to the top of the list for trading view WL header, as request by Pattabhi Chekka
   // get all tickers from the a tags
   allTickers.forEach((ticker) => {
     allTickersArray.push(
       replaceSpecialCharsWithUnderscore(ticker.href.substring(45))
     );
   });
+  // add :NSE to the tickers
+  allTickersArray = addColenNSEtoTickers(allTickersArray);
   createFakeTextAreaToCopyText(
     removeDuplicateTickers(allTickersArray).join(",")
   );
@@ -107,7 +108,9 @@ function createFakeTextAreaToCopyText(text) {
 function removeDuplicateTickers(tickers) {
   return [...new Set(tickers)];
 }
-
+function addColenNSEtoTickers(tickers) {
+  return tickers.map((ticker) => "NSE:" + ticker);
+}
 function replaceSpecialCharsWithUnderscore(ticker) {
   return ticker.replace(/[^a-zA-Z0-9]/g, "_");
 }
@@ -127,7 +130,7 @@ const addCopyBtOnTradingView = () => {
       const allTickers = tables.querySelectorAll(
         'a[href^="https://in.tradingview.com/chart/?symbol=NSE:"]'
       );
-      const allTickersArray = [dateHeader];
+      let allTickersArray = [dateHeader];
 
       // get all tickers from the a tags
       allTickers.forEach((ticker) => {
@@ -135,6 +138,8 @@ const addCopyBtOnTradingView = () => {
           replaceSpecialCharsWithUnderscore(ticker.href.substring(45))
         );
       });
+      // add :NSE to the tickers
+      allTickersArray = addColenNSEtoTickers(allTickersArray);
       createFakeTextAreaToCopyText(
         removeDuplicateTickers(allTickersArray).join(",")
       );
