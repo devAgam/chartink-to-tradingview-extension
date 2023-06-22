@@ -8,6 +8,7 @@ const dateHeader =
     month: "short",
     year: "numeric",
   });
+
 function changeURL() {
   var links = document.querySelectorAll('a[href^="/stocks"]');
   for (var i = 0; i < links.length; i++) {
@@ -65,12 +66,68 @@ addScreenerButton(
   copyAllTickersOnScreen
 );
 
-function copyAllTickersOnScreen() {
-  // get all a tags with href starting with tradingview
-  const allTickers = document.querySelectorAll(
-    'a[href^="https://in.tradingview.com/chart/?symbol=NSE:"]'
-  );
-  let allTickersArray = [dateHeader]; // date header is added to the top of the list for trading view WL header, as request by Pattabhi Chekka
+function getPaginationLength() {
+  const pagination = document.getElementsByClassName("pagination");
+  //     count the number of li tags in the pagination
+  const numOfLis = pagination[0].getElementsByTagName("li").length;
+
+  // two of the lis are back and next buttons so subtracting 2 would get us the number of pages in the table
+  const numOfPages = numOfLis - 2;
+  return numOfPages;
+}
+
+function nextPage() {
+  //   click <a> tag with inner text of "Next"
+  document
+    .evaluate(
+      "//a[text()='Next']",
+      document,
+      null,
+      XPathResult.FIRST_ORDERED_NODE_TYPE,
+      null
+    )
+    .singleNodeValue.click();
+}
+
+function getNumberOfStocks() {
+  // get el with class dataTables_info
+  const el = document.getElementsByClassName("dataTables_info")[0];
+  const innerText = el.innerText;
+  //   get the first number from the inner text
+  const numberOfStocks = innerText.match(/\d+/)[0];
+  return numberOfStocks;
+}
+
+const delay = (t) => {
+  return new Promise((res) => setTimeout(res, t));
+};
+
+async function copyAllTickersOnScreen() {
+  let allTickersArray = []; // date header is added to the top of the list for trading view WL header, as request by Pattabhi Chekka
+
+  let allTags = [];
+
+  const numberOfPages = getPaginationLength();
+
+  for (let i = 0; i < numberOfPages; i++) {
+    // if its the second page or more, wait for 2 seconds for the anchor tags to change
+    if (i > 0) {
+      await delay(200);
+    }
+
+    allTags.push(
+      document.querySelectorAll(
+        'a[href^="https://in.tradingview.com/chart/?symbol=NSE:"]'
+      )
+    );
+
+    nextPage();
+  }
+
+  // merge all arrays into one
+
+  const allTickers = allTags.map((tag) => Array.from(tag)).flat();
+
   // get all tickers from the a tags
   allTickers.forEach((ticker) => {
     allTickersArray.push(
@@ -79,8 +136,9 @@ function copyAllTickersOnScreen() {
   });
   // add :NSE to the tickers
   allTickersArray = addColenNSEtoTickers(allTickersArray);
+
   createFakeTextAreaToCopyText(
-    removeDuplicateTickers(allTickersArray).join(",")
+    [dateHeader, ...removeDuplicateTickers(allTickersArray)].join(", ")
   );
   replaceButtonText("add-to-watchlist");
 }
@@ -108,9 +166,11 @@ function createFakeTextAreaToCopyText(text) {
 function removeDuplicateTickers(tickers) {
   return [...new Set(tickers)];
 }
+
 function addColenNSEtoTickers(tickers) {
   return tickers.map((ticker) => "NSE:" + ticker);
 }
+
 function replaceSpecialCharsWithUnderscore(ticker) {
   return ticker.replace(/[^a-zA-Z0-9]/g, "_");
 }
