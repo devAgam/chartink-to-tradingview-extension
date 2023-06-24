@@ -39,7 +39,7 @@ observer.observe(document.body, config);
 const screenerButtonsClass = "btn btn-default btn-primary";
 
 // add a button to the screener
-const addScreenerButton = (
+const addCopyToTradingViewButton = (
   buttonText,
   buttonClass,
   buttonId,
@@ -57,7 +57,7 @@ const addScreenerButton = (
 };
 
 // add a button to the screener
-addScreenerButton(
+addCopyToTradingViewButton(
   "Copy to TradingView",
   "btn btn-default btn-primary",
   "add-to-watchlist",
@@ -65,13 +65,13 @@ addScreenerButton(
 );
 
 function getPaginationLength() {
-  const pagination = document.getElementsByClassName("pagination");
-  //     count the number of li tags in the pagination
-  const numOfLis = pagination[0].getElementsByTagName("li").length;
+  //Get li tags of the pagination list
+  const paginationList = document
+    .getElementsByClassName("pagination")[0]
+    .getElementsByTagName("li");
 
-  // two of the lis are back and next buttons so subtracting 2 would get us the number of pages in the table
-  const numOfPages = numOfLis - 2;
-  return numOfPages;
+  // Second last pagination element contains the last page number
+  return paginationList[paginationList.length - 2].innerText;;
 }
 
 function nextPage() {
@@ -133,7 +133,7 @@ async function copyAllTickersOnScreen() {
     );
   });
   // add :NSE to the tickers
-  allTickersArray = addColenNSEtoTickers(allTickersArray);
+  allTickersArray = addColonNSEtoTickers(allTickersArray);
 
   createFakeTextAreaToCopyText(
     [dateHeader, ...removeDuplicateTickers(allTickersArray)].join(", ")
@@ -164,7 +164,7 @@ function removeDuplicateTickers(tickers) {
   return [...new Set(tickers)];
 }
 
-function addColenNSEtoTickers(tickers) {
+function addColonNSEtoTickers(tickers) {
   return tickers.map((ticker) => "NSE:" + ticker);
 }
 
@@ -176,7 +176,7 @@ const addCopyBtOnTradingView = () => {
   // add an onclick alert to all the <i> tags wit class "far fa-copy mr-1"
   const copyBts = document.querySelectorAll('i[class="far fa-copy mr-1"]');
   copyBts.forEach((copyBt) => {
-    // add ononclick event to the sibling span tag
+    // add onclick event to the sibling span tag
 
     copyBt.style.fontSize = "20px";
     // add an onclick event
@@ -198,7 +198,7 @@ const addCopyBtOnTradingView = () => {
         );
       });
       // add :NSE to the tickers
-      allTickersArray = addColenNSEtoTickers(allTickersArray);
+      allTickersArray = addColonNSEtoTickers(allTickersArray);
       createFakeTextAreaToCopyText(
         removeDuplicateTickers(allTickersArray).join(",")
       );
