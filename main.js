@@ -11,13 +11,24 @@ const dateHeader =
   });
 
 function changeURL() {
-  var links = document.querySelectorAll('a[href^="/stocks"]');
-  for (var i = 0; i < links.length; i++) {
-    const baseUrl = "https://chartink.com/stocks/";
-    links[i].href =
-      "https://in.tradingview.com/chart/?symbol=NSE:" +
-      links[i].href.substring(baseUrl.length).replace(".html", "");
-  }
+  // check if the chartRedirect state is true, send message to background script
+  chrome.runtime.sendMessage(
+    { message: "getChartRedirectState" },
+    function (response) {
+      if (!response.chartRedirectState) {
+        return;
+      }
+      if (response.chartRedirectState) {
+        var links = document.querySelectorAll('a[href^="/stocks"]');
+        for (var i = 0; i < links.length; i++) {
+          const baseUrl = "https://chartink.com/stocks/";
+          links[i].href =
+            "https://in.tradingview.com/chart/?symbol=NSE:" +
+            links[i].href.substring(baseUrl.length).replace(".html", "");
+        }
+      }
+    }
+  );
 }
 
 var observer = new MutationObserver(function (mutations) {
@@ -71,7 +82,7 @@ function getPaginationLength() {
     .getElementsByTagName("li");
 
   // Second last pagination element contains the last page number
-  return paginationList[paginationList.length - 2].innerText;;
+  return paginationList[paginationList.length - 2].innerText;
 }
 
 function nextPage() {
