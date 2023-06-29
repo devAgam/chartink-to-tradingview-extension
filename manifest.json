@@ -8,18 +8,15 @@
   },
   "content_scripts": [
     {
-      "matches": [
-        "*://*.chartink.com/*"
-      ],
-      "js": [
-        "main.js"
-      ]
+      "matches": ["*://*.chartink.com/*"],
+      "js": ["main.js"],
+      "css": ["popup.css"]
     }
   ],
-  "permissions": [
-    "clipboardWrite",
-    "tabs"
-  ],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "permissions": ["clipboardWrite", "tabs", "storage"],
   "background": {
     "service_worker": "background.js"
   }
