@@ -67,13 +67,13 @@ addScreenerButton(
 );
 
 function getPaginationLength() {
-  const pagination = document.getElementsByClassName("pagination");
-  //     count the number of li tags in the pagination
-  const numOfLis = pagination[0].getElementsByTagName("li").length;
+  //Get li tags of the pagination list
+  const paginationList = document
+    .getElementsByClassName("pagination")[0]
+    .getElementsByTagName("li");
 
-  // two of the lis are back and next buttons so subtracting 2 would get us the number of pages in the table
-  const numOfPages = numOfLis - 2;
-  return numOfPages;
+  // Second last pagination element contains the last page number
+  return paginationList[paginationList.length - 2].innerText;
 }
 
 function nextPage() {
