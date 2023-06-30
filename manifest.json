@@ -1,22 +1,27 @@
 {
   "manifest_version": 2,
   "name": "Chartink To TradingView",
-  "version": "1.7",
+  "version": "1.8",
   "description": "Redirects Chartink Symbol Links to TradingView Chart",
   "icons": {
     "48": "icons/logo.svg"
   },
   "content_scripts": [
     {
-      "matches": [
-        "*://*.chartink.com/*"
-      ],
-      "js": [
-        "main.js"
-      ]
+      "matches": ["*://*.chartink.com/*"],
+      "js": ["main.js"],
+      "css": ["popup.css"]
     }
   ],
-  "permissions": [
-    "clipboardWrite"
-  ]
+  "permissions": ["clipboardWrite", "storage"],
+  "background": {
+    "scripts": ["background.js"],
+    "persistent": false,
+    "type": "module"
+  },
+  "browser_action": {
+    "default_popup": "popup.html",
+    "default_title": "TradingView to Chartink",
+    "default_icon": "icons/logo.svg"
+  }
 }
