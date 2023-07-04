@@ -178,7 +178,6 @@ async function copyAllTickersOnScreen() {
 
       // get all tickers from the a tags
       allTickers.forEach((ticker) => {
-        console.log(ticker.href);
         allTickersArray.push(
           replaceSpecialCharsWithUnderscore(
             removeDotHTML(ticker.href.substring(28))
