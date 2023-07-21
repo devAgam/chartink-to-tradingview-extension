@@ -23,7 +23,7 @@ function changeURL() {
           const baseUrl = "https://chartink.com/stocks/";
           links[i].href =
             "https://in.tradingview.com/chart/?symbol=NSE:" +
-            links[i].href.substring(baseUrl.length).replace(".html", "");
+            links[i].href.substring(baseUrl.length).replace(".html", "").replace(/[^a-zA-Z0-9]/g, "_");
         }
       }
     }
