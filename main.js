@@ -145,7 +145,9 @@ async function copyAllTickersOnScreen() {
         // get all tickers from the a tags
         allTickers.forEach((ticker) => {
           allTickersArray.push(
-            replaceSpecialCharsWithUnderscore(ticker.href.substring(45))
+            replaceSpecialCharsWithUnderscore(
+              extracrtSymbolFromURL(ticker.href)
+            )
           );
         });
         // add :NSE to the tickers
@@ -263,4 +265,9 @@ const addCopyBtOnTradingView = () => {
 addCopyBtOnTradingView();
 function removeDotHTML(ticker) {
   return ticker.replace(".html", "");
+}
+function extracrtSymbolFromURL(url) {
+  // symbol is query param in the url
+  const urlParams = new URLSearchParams(url);
+  return urlParams.get("symbol");
 }
