@@ -1,6 +1,7 @@
 window.onload = function () {
   changeURL();
 };
+
 const dateHeader =
   "### " +
   new Date().toLocaleDateString("en-GB", {
@@ -11,7 +12,7 @@ const dateHeader =
 
 function changeURL() {
   // check if the chartRedirect state is true, send message to background script
-  browser.runtime.sendMessage(
+  chrome.runtime.sendMessage(
     { message: "getChartRedirectState" },
     function (response) {
       if (!response.chartRedirectState) {
@@ -45,14 +46,11 @@ var config = {
 
 observer.observe(document.body, config);
 
-// chart ink screener button parent div
-const screenerButtonsParentDiv = "dt-buttons btn-group";
-
 // chart ink screener button class
 const screenerButtonsClass = "btn btn-default btn-primary";
 
 // add a button to the screener
-const addScreenerButton = (
+const addCopyToTradingViewButton = (
   buttonText,
   buttonClass,
   buttonId,
@@ -70,7 +68,7 @@ const addScreenerButton = (
 };
 
 // add a button to the screener
-addScreenerButton(
+addCopyToTradingViewButton(
   "Copy to TradingView",
   "btn btn-default btn-primary",
   "add-to-watchlist",
@@ -115,7 +113,7 @@ const delay = (t) => {
 
 async function copyAllTickersOnScreen() {
   // if redirect to trading view is not enabled, return
-  browser.runtime.sendMessage(
+  chrome.runtime.sendMessage(
     { message: "getChartRedirectState" },
     async function (response) {
       if (response.chartRedirectState) {
@@ -147,7 +145,9 @@ async function copyAllTickersOnScreen() {
         // get all tickers from the a tags
         allTickers.forEach((ticker) => {
           allTickersArray.push(
-            replaceSpecialCharsWithUnderscore(ticker.href.substring(45))
+            replaceSpecialCharsWithUnderscore(
+              extracrtSymbolFromURL(ticker.href)
+            )
           );
         });
         // add :NSE to the tickers
@@ -201,7 +201,6 @@ async function copyAllTickersOnScreen() {
 function replaceButtonText(buttonId) {
   const button = document.getElementById(buttonId);
   if (!button) return;
-  console.log(button.innerHTML);
   button.innerHTML = "Copied to clipboard 📋";
   setTimeout(() => {
     button.innerHTML = "Copy to TradingView";
@@ -221,7 +220,7 @@ function removeDuplicateTickers(tickers) {
   return [...new Set(tickers)];
 }
 
-function addColenNSEtoTickers(tickers) {
+function addColonNSEtoTickers(tickers) {
   return tickers.map((ticker) => "NSE:" + ticker);
 }
 
@@ -233,6 +232,8 @@ const addCopyBtOnTradingView = () => {
   // add an onclick alert to all the <i> tags wit class "far fa-copy mr-1"
   const copyBts = document.querySelectorAll('i[class="far fa-copy mr-1"]');
   copyBts.forEach((copyBt) => {
+    // add onclick event to the sibling span tag
+
     copyBt.style.fontSize = "20px";
     // add an onclick event
     copyBt.onclick = (e) => {
@@ -253,7 +254,7 @@ const addCopyBtOnTradingView = () => {
         );
       });
       // add :NSE to the tickers
-      allTickersArray = addColenNSEtoTickers(allTickersArray);
+      allTickersArray = addColonNSEtoTickers(allTickersArray);
       createFakeTextAreaToCopyText(
         removeDuplicateTickers(allTickersArray).join(",")
       );
@@ -265,6 +266,8 @@ addCopyBtOnTradingView();
 function removeDotHTML(ticker) {
   return ticker.replace(".html", "");
 }
-function addColonNSEtoTickers(tickers) {
-  return tickers.map((ticker) => "NSE:" + ticker);
+function extracrtSymbolFromURL(url) {
+  // symbol is query param in the url
+  const urlParams = new URLSearchParams(url);
+  return urlParams.get("symbol");
 }
