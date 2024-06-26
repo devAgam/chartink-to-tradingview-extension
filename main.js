@@ -24,7 +24,7 @@ function changeURL() {
           const baseUrl = "https://chartink.com/stocks/";
           links[i].href =
             "https://in.tradingview.com/chart/?symbol=NSE:" +
-            links[i].href.substring(baseUrl.length).replace(".html", "");
+            new URL(links[i].href, baseUrl).searchParams.get("symbol");
         }
       }
     }
@@ -269,5 +269,6 @@ function removeDotHTML(ticker) {
 function extracrtSymbolFromURL(url) {
   // symbol is query param in the url
   const urlParams = new URLSearchParams(url);
+  console.log(urlParams.get("symbol"));
   return urlParams.get("symbol");
 }
