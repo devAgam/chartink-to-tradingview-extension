@@ -268,6 +268,7 @@ function removeDotHTML(ticker) {
 }
 function extracrtSymbolFromURL(url) {
   // symbol is query param in the url
-  const urlParams = new URLSearchParams(url);
-  return urlParams.get("symbol");
+  const urlParams = new URLSearchParams(new URL(url).search);
+  const symbol = urlParams.get("symbol");
+  return symbol ? symbol.split(":")[1] : null;
 }
