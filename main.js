@@ -144,6 +144,7 @@ async function copyAllTickersOnScreen() {
 
         // get all tickers from the a tags
         allTickers.forEach((ticker) => {
+          console.log(ticker);
           allTickersArray.push(
             replaceSpecialCharsWithUnderscore(
               extracrtSymbolFromURL(ticker.href)
@@ -267,8 +268,8 @@ function removeDotHTML(ticker) {
   return ticker.replace(".html", "");
 }
 function extracrtSymbolFromURL(url) {
-  // symbol is query param in the url
-  const urlParams = new URLSearchParams(url);
-  console.log(urlParams.get("symbol"));
-  return urlParams.get("symbol");
+  // symbol is end of the url after NSE:
+  const urlParams = new URLSearchParams(new URL(url).search);
+  const symbol = urlParams.get("symbol");
+  return symbol ? symbol.split(":")[1] : null;
 }
