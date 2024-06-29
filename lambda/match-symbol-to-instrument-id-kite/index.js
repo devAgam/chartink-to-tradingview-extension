@@ -47,7 +47,7 @@ exports.handler = async (event) => {
 
     return {
       statusCode: 200,
-      body: JSON.stringify({ exchange_token: tradingData.exchange_token }),
+      body: JSON.stringify({ instrument_token: tradingData.instrument_token }),
     };
   } catch (error) {
     return {

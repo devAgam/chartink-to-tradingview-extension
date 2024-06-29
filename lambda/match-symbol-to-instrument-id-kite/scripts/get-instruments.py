@@ -22,6 +22,7 @@ def csv_to_json(csv_content):
         if row["instrument_type"] == "EQ":
             filtered_row = {
                 "exchange_token": row["exchange_token"],
+                "instrument_token": row["instrument_token"],
                 "tradingsymbol": row["tradingsymbol"],
             }
             data.append(filtered_row)
