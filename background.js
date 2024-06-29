@@ -48,9 +48,34 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   } else if (request.message === "setChartRedirectState") {
     setChartRedirectState(request.state);
     return true;
+  } else if (request.message === "redirectToKite") {
+    const symbol = extractSymbolFromTradingViewURL(request.href);
+    // get the instrument token for the symbol
+    getSymbolInfoFromCDN(symbol).then((symbolInfo) => {
+      // open the kite chart with the instrument token
+      chrome.tabs.create({
+        url: `https://kite.zerodha.com/chart/web/tvc/NSE/${symbol.toUpperCase()}/${
+          symbolInfo.instrument_token
+        }`,
+      });
+    });
   }
   return true;
 });
+function extractSymbolFromTradingViewURL(url) {
+  return url.split("/")[4].split(":")[1];
+}
+
+function getSymbolInfoFromCDN(symbol) {
+  // https://d1t7yromaetmio.cloudfront.net/default/chartink-kite-symbol-matcher?tradingsymbol=
+  return fetch(
+    `https://d1t7yromaetmio.cloudfront.net/default/chartink-kite-symbol-matcher?tradingsymbol=${symbol}`
+  ).then((response) => response.json());
+  // This will return
+  //  {
+  //   "instrument_token": "139284740"
+  // }
+}
 // on install set the chartRedirect state to true (maintain legacy functionality)
 chrome.runtime.onInstalled.addListener(() => {
   setChartRedirectState(true);
