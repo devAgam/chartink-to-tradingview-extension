@@ -24,11 +24,20 @@ function changeURL() {
           const baseUrl = "https://chartink.com/stocks/";
           links[i].href =
             "https://in.tradingview.com/chart/?symbol=NSE:" +
-            new URL(links[i].href, baseUrl).searchParams.get("symbol");
+            compatabilitySymbolFunc(links[i].href);
         }
       }
     }
   );
+}
+
+function compatabilitySymbolFunc(url) {
+  // if url contain stocks-new then use the search params
+  if (url.includes("stocks-new")) {
+    return new URL(url).searchParams.get("symbol");
+  }
+  // else use the last part of the url before .html and and after /
+  return url.substring(url.lastIndexOf("/") + 1, url.lastIndexOf(".html"));
 }
 
 var observer = new MutationObserver(function (mutations) {
