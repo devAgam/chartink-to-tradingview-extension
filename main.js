@@ -21,10 +21,32 @@ function changeURL() {
       if (response.chartRedirectState) {
         var links = document.querySelectorAll('a[href^="/stocks"]');
         for (var i = 0; i < links.length; i++) {
-          const baseUrl = "https://chartink.com/stocks/";
           links[i].href =
             "https://in.tradingview.com/chart/?symbol=NSE:" +
             compatabilitySymbolFunc(links[i].href);
+          // also add a button in every row to copy the ticker to clipboard
+          // skip every other one if the url is not dashboard
+          if (i % 2 !== 0 && !window.location.href.includes("/dashboard/"))
+            continue;
+
+          const copyButton = document.createElement("button");
+
+          copyButton.innerHTML = `<img src="https://kite.zerodha.com/static/images/browser-icons/apple-touch-icon-57x57.png" alt="copy" style="width: 20px; height: 20px; margin-bottom:-3px;">`;
+          copyButton.style.backgroundColor = "transparent";
+          copyButton.style.border = "none";
+          copyButton.style.cursor = "pointer";
+          copyButton.style.marginLeft = "5px";
+
+          copyButton.onclick = function () {
+            const parentNode = copyButton.parentNode;
+            const aTagInParentNode = parentNode.querySelector("a");
+            const href = aTagInParentNode.href;
+            chrome.runtime.sendMessage({
+              message: "redirectToKite",
+              href: href,
+            });
+          };
+          links[i].parentNode.appendChild(copyButton);
         }
       }
     }
