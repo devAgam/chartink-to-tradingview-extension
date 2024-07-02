@@ -83,29 +83,31 @@ function changeURL() {
               if (i % 2 !== 0 && !window.location.href.includes("/dashboard/"))
                 continue;
               // check if copy button already exists
-          if (links[i].parentNode.querySelector(".copy-to-kite")) continue;
+              if (links[i].parentNode.querySelector(".copy-to-kite")) continue;
 
-          const copyButton = document.createElement("button");
+              const copyButton = document.createElement("button");
 
-          copyButton.innerHTML = `<img src="https://kite.zerodha.com/static/images/browser-icons/apple-touch-icon-57x57.png" alt="copy" style="width: 20px; height: 20px; margin-bottom:-3px;">`;
-          copyButton.style.backgroundColor = "transparent";
-          copyButton.style.border = "none";
-          copyButton.style.cursor = "pointer";
-          copyButton.style.marginLeft = "5px";
-          // add classnames to the button
-          copyButton.className = "copy-to-kite";
+              copyButton.innerHTML = `<img src="https://kite.zerodha.com/static/images/browser-icons/apple-touch-icon-57x57.png" alt="copy" style="width: 20px; height: 20px; margin-bottom:-3px;">`;
+              copyButton.style.backgroundColor = "transparent";
+              copyButton.style.border = "none";
+              copyButton.style.cursor = "pointer";
+              copyButton.style.marginLeft = "5px";
+              // add classnames to the button
+              copyButton.className = "copy-to-kite";
 
-          copyButton.onclick = function () {
-            const parentNode = copyButton.parentNode;
-            const aTagInParentNode = parentNode.querySelector("a");
-            const href = aTagInParentNode.href;
-            chrome.runtime.sendMessage({
-              message: "redirectToKite",
-              href: href,
-            });
-          };
-          links[i].parentNode.appendChild(copyButton);
-        }
+              copyButton.onclick = function () {
+                const parentNode = copyButton.parentNode;
+                const aTagInParentNode = parentNode.querySelector("a");
+                const href = aTagInParentNode.href;
+                chrome.runtime.sendMessage({
+                  message: "redirectToKite",
+                  href: href,
+                });
+              };
+              links[i].parentNode.appendChild(copyButton);
+            }
+          }
+        );
       }
     }
   );
@@ -244,7 +246,7 @@ async function copyAllTickersOnScreen() {
         allTickersArray = addColonNSEtoTickers(allTickersArray);
 
         createFakeTextAreaToCopyText(
-          [dateHeader, ...removeDuplicateTickers(allTickersArray)].join(", ")
+          [...removeDuplicateTickers(allTickersArray)].join(", ")
         );
         replaceButtonText("add-to-watchlist");
         return;
@@ -280,7 +282,7 @@ async function copyAllTickersOnScreen() {
       allTickersArray = addColonNSEtoTickers(allTickersArray);
 
       createFakeTextAreaToCopyText(
-        [dateHeader, ...removeDuplicateTickers(allTickersArray)].join(", ")
+        [...removeDuplicateTickers(allTickersArray)].join(", ")
       );
       replaceButtonText("add-to-watchlist");
     }
@@ -299,7 +301,7 @@ function replaceButtonText(buttonId) {
 
 function createFakeTextAreaToCopyText(text) {
   const fakeTextArea = document.createElement("textarea");
-  fakeTextArea.value = text;
+  fakeTextArea.value = dateHeader + "," + text;
   document.body.appendChild(fakeTextArea);
   fakeTextArea.select();
   document.execCommand("copy");
@@ -335,7 +337,7 @@ const addCopyBtOnTradingView = () => {
       const allTickers = tables.querySelectorAll(
         'a[href^="https://in.tradingview.com/chart/?symbol=NSE:"]'
       );
-      let allTickersArray = [dateHeader];
+      let allTickersArray = [];
 
       // get all tickers from the a tags
       allTickers.forEach((ticker) => {
