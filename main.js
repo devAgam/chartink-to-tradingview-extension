@@ -29,6 +29,60 @@ function changeURL() {
           if (i % 2 !== 0 && !window.location.href.includes("/dashboard/"))
             continue;
           // check if copy button already exists
+          // if (links[i].parentNode.querySelector(".copy-to-kite")) continue;
+
+          // const copyButton = document.createElement("button");
+
+          // copyButton.innerHTML = `<img src="https://kite.zerodha.com/static/images/browser-icons/apple-touch-icon-57x57.png" alt="copy" style="width: 20px; height: 20px; margin-bottom:-3px;">`;
+          // copyButton.style.backgroundColor = "transparent";
+          // copyButton.style.border = "none";
+          // copyButton.style.cursor = "pointer";
+          // copyButton.style.marginLeft = "5px";
+          // // add classnames to the button
+          // copyButton.className = "copy-to-kite";
+
+          // copyButton.onclick = function () {
+          //   const parentNode = copyButton.parentNode;
+          //   const aTagInParentNode = parentNode.querySelector("a");
+          //   const href = aTagInParentNode.href;
+          //   chrome.runtime.sendMessage({
+          //     message: "redirectToKite",
+          //     href: href,
+          //   });
+          // };
+          // links[i].parentNode.appendChild(copyButton);
+        }
+      }
+    }
+  );
+  chrome.runtime.sendMessage(
+    { message: "getKiteEnabled" },
+    function (response) {
+      if (!response.kiteEnabled) {
+        return;
+      }
+      if (response.kiteEnabled) {
+        // first check if the tradingView redirect is enabled
+        return chrome.runtime.sendMessage(
+          { message: "getChartRedirectState" },
+          function (response) {
+            var links = [];
+            if (response.chartRedirectState) {
+              // document.querySelectorAll(
+              //   'a[href^="https://in.tradingview.com/chart/?symbol=NSE:"]'
+              // );
+              links = document.querySelectorAll(
+                'a[href^="https://in.tradingview.com/chart/?symbol=NSE:"]'
+              );
+            } else {
+              links = document.querySelectorAll('a[href^="/stocks"]');
+            }
+            for (var i = 0; i < links.length; i++) {
+              // also add a button in every row to copy the ticker to clipboard
+              // skip every other one if the url is not dashboard
+              if (i % 2 !== 0 && !window.location.href.includes("/dashboard/"))
+                continue;
+              // check if copy button already exists
           if (links[i].parentNode.querySelector(".copy-to-kite")) continue;
 
           const copyButton = document.createElement("button");
