@@ -28,6 +28,8 @@ function changeURL() {
           // skip every other one if the url is not dashboard
           if (i % 2 !== 0 && !window.location.href.includes("/dashboard/"))
             continue;
+          // check if copy button already exists
+          if (links[i].parentNode.querySelector(".copy-to-kite")) continue;
 
           const copyButton = document.createElement("button");
 
@@ -36,6 +38,8 @@ function changeURL() {
           copyButton.style.border = "none";
           copyButton.style.cursor = "pointer";
           copyButton.style.marginLeft = "5px";
+          // add classnames to the button
+          copyButton.className = "copy-to-kite";
 
           copyButton.onclick = function () {
             const parentNode = copyButton.parentNode;
