@@ -84,7 +84,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   return true;
 });
 function extractSymbolFromTradingViewURL(url) {
-  return url.split("/")[4].split(":")[1];
+  if (url.includes("NSE:")) {
+    return url.split("/")[4].split(":")[1];
+  } else if (url.includes("chartink")) {
+    // get the symbol from query param
+    const urlParams = new URLSearchParams(url);
+    return urlParams.get("symbol");
+  } else if (url.includes("/stocks/")) {
+    // get the symbol after the last /
+    return url.split("/").pop();
+  }
 }
 
 function getSymbolInfoFromCDN(symbol) {
