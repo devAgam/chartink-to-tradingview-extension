@@ -72,6 +72,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }`,
       });
     });
+  } else if (request.message === "getKiteEnabled") {
+    getKiteEnabled().then((result) => {
+      sendResponse({ kiteEnabled: result });
+    });
+    return true;
+  } else if (request.message === "setKiteEnabled") {
+    setKiteEnabled(request.state);
+    return true;
   }
   return true;
 });
