@@ -37,3 +37,45 @@ function updateCheckBoxState() {
 
 // execute the function on dom content loaded
 document.addEventListener("DOMContentLoaded", updateCheckBoxState);
+
+// KITE REDIRECT BT
+
+function attachToKiteBt() {
+  var kiteBtState = document.getElementById("kite-bt");
+  // redirect element is a input with type checkbox, if its checked then send message to background script
+  // to set chartRedirect state to true
+  kiteBtState.addEventListener("change", function () {
+    if (this.checked) {
+      chrome.runtime.sendMessage({
+        message: "setKiteEnabled",
+        state: true,
+      });
+    } else {
+      chrome.runtime.sendMessage({
+        message: "setKiteEnabled",
+        state: false,
+      });
+    }
+  });
+}
+
+// execute the function on dom content loaded
+document.addEventListener("DOMContentLoaded", attachToKiteBt);
+
+function updateKiteCheckBoxState() {
+  // get the state and update the checkbox
+  chrome.runtime.sendMessage(
+    { message: "getKiteEnabled" },
+    function (response) {
+      console.log(response);
+      if (response.kiteEnabled) {
+        document.getElementById("kite-bt").defaultChecked = true;
+      } else {
+        document.getElementById("kite-bt").defaultChecked = false;
+      }
+    }
+  );
+}
+
+// execute the function on dom content loaded
+document.addEventListener("DOMContentLoaded", updateKiteCheckBoxState);
