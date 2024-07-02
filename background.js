@@ -92,7 +92,7 @@ function extractSymbolFromTradingViewURL(url) {
     return urlParams.get("symbol");
   } else if (url.includes("/stocks/")) {
     // get the symbol after the last /
-    return url.split("/").pop();
+    return url.split("/").pop().replace(".html", "");
   }
 }
 
