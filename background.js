@@ -38,6 +38,19 @@ function getChartRedirectState() {
   });
 }
 
+function getKiteEnabled() {
+  return new Promise((resolve, reject) => {
+    chrome.storage.local.get("kiteEnabled", (result) => {
+      resolve(result.kiteEnabled);
+    });
+  });
+}
+
+function setKiteEnabled(state) {
+  console.log("setting state", state);
+  chrome.storage.local.set({ kiteEnabled: state });
+}
+
 // listener to listen for messages from popup.js
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.message === "getChartRedirectState") {
