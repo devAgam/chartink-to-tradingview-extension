@@ -86,7 +86,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 function extractSymbolFromTradingViewURL(url) {
   if (url.includes("NSE:")) {
     return url.split("/")[4].split(":")[1];
-  } else if (url.includes("chartink")) {
+  } else if (url.includes("/stocks-new")) {
     // get the symbol from query param
     const urlParams = new URLSearchParams(url);
     return urlParams.get("symbol");
