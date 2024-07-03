@@ -109,4 +109,5 @@ function getSymbolInfoFromCDN(symbol) {
 // on install set the chartRedirect state to true (maintain legacy functionality)
 chrome.runtime.onInstalled.addListener(() => {
   setChartRedirectState(true);
+  setKiteEnabled(true);
 });
