@@ -77,5 +77,30 @@ function updateKiteCheckBoxState() {
   );
 }
 
+function attachToKiteChartType() {
+  var kiteChartType = document.getElementById("chart-type");
+  // redirect element is a input with type checkbox, if its checked then send message to background script
+  // to set chartRedirect state to true
+  kiteChartType.addEventListener("change", function () {
+    chrome.runtime.sendMessage({
+      message: "setKiteChartType",
+      type: this.value,
+    });
+  });
+}
+
+function updateKiteChartType() {
+  // get the state and update the checkbox
+  chrome.runtime.sendMessage(
+    { message: "getKiteChartType" },
+    function (response) {
+      console.log(response);
+      document.getElementById("chart-type").value = response.kiteChartType;
+    }
+  );
+}
+
 // execute the function on dom content loaded
 document.addEventListener("DOMContentLoaded", updateKiteCheckBoxState);
+document.addEventListener("DOMContentLoaded", attachToKiteChartType);
+document.addEventListener("DOMContentLoaded", updateKiteChartType);

@@ -2,126 +2,149 @@ window.onload = function () {
   changeURL();
 };
 
-const dateHeader =
-  "### " +
-  new Date().toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+const dateHeader = `### ${new Date().toLocaleDateString("en-GB", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+})}`;
 
+/**
+ * Changes the URL of certain links on the page based on the chart redirect state and kite enabled state.
+ * Adds a copy button next to the modified links.
+ */
 function changeURL() {
-  // check if the chartRedirect state is true, send message to background script
+  // Get the chart redirect state from the background script
   chrome.runtime.sendMessage(
     { message: "getChartRedirectState" },
     function (response) {
       if (!response.chartRedirectState) {
         return;
       }
-      if (response.chartRedirectState) {
-        var links = document.querySelectorAll('a[href^="/stocks"]');
-        for (var i = 0; i < links.length; i++) {
-          links[i].href =
-            "https://in.tradingview.com/chart/?symbol=NSE:" +
-            compatabilitySymbolFunc(links[i].href);
-          // also add a button in every row to copy the ticker to clipboard
-          // skip every other one if the url is not dashboard
-          if (i % 2 !== 0 && !window.location.href.includes("/dashboard/"))
-            continue;
-          // check if copy button already exists
-          // if (links[i].parentNode.querySelector(".copy-to-kite")) continue;
 
-          // const copyButton = document.createElement("button");
+      // Find all links with href starting with "/stocks"
+      var links = document.querySelectorAll('a[href^="/stocks"]');
+      for (var i = 0; i < links.length; i++) {
+        // Modify the href to redirect to TradingView with the appropriate symbol
+        links[
+          i
+        ].href = `https://in.tradingview.com/chart/?symbol=NSE:${compatabilitySymbolFunc(
+          links[i].href
+        )}`;
 
-          // copyButton.innerHTML = `<img src="https://kite.zerodha.com/static/images/browser-icons/apple-touch-icon-57x57.png" alt="copy" style="width: 20px; height: 20px; margin-bottom:-3px;">`;
-          // copyButton.style.backgroundColor = "transparent";
-          // copyButton.style.border = "none";
-          // copyButton.style.cursor = "pointer";
-          // copyButton.style.marginLeft = "5px";
-          // // add classnames to the button
-          // copyButton.className = "copy-to-kite";
-
-          // copyButton.onclick = function () {
-          //   const parentNode = copyButton.parentNode;
-          //   const aTagInParentNode = parentNode.querySelector("a");
-          //   const href = aTagInParentNode.href;
-          //   chrome.runtime.sendMessage({
-          //     message: "redirectToKite",
-          //     href: href,
-          //   });
-          // };
-          // links[i].parentNode.appendChild(copyButton);
+        // Skip every other link if not on the dashboard page
+        if (i % 2 !== 0 && !window.location.href.includes("/dashboard/")) {
+          continue;
         }
+
+        // Skip if a copy button already exists
+        if (links[i].parentNode.querySelector(".copy-to-kite")) {
+          continue;
+        }
+
+        // Create a copy button
+        const copyButton = document.createElement("button");
+        copyButton.innerHTML = `<img src="https://kite.zerodha.com/static/images/browser-icons/apple-touch-icon-57x57.png" alt="copy" style="width: 20px; height: 20px; margin-bottom:-3px;">`;
+        copyButton.style.backgroundColor = "transparent";
+        copyButton.style.border = "none";
+        copyButton.style.cursor = "pointer";
+        copyButton.style.marginLeft = "5px";
+        copyButton.className = "copy-to-kite";
+
+        // Add an onclick event to the copy button
+        copyButton.onclick = function () {
+          const parentNode = copyButton.parentNode;
+          const aTagInParentNode = parentNode.querySelector("a");
+          const href = aTagInParentNode.href;
+          // Send a message to the background script to redirect to Kite with the copied link
+          chrome.runtime.sendMessage({
+            message: "redirectToKite",
+            href: href,
+          });
+        };
+
+        // Append the copy button to the parent node of the link
+        links[i].parentNode.appendChild(copyButton);
       }
     }
   );
+
+  // Get the kite enabled state from the background script
   chrome.runtime.sendMessage(
     { message: "getKiteEnabled" },
     function (response) {
       if (!response.kiteEnabled) {
         return;
       }
-      if (response.kiteEnabled) {
-        // first check if the tradingView redirect is enabled
-        return chrome.runtime.sendMessage(
-          { message: "getChartRedirectState" },
-          function (response) {
-            var links = [];
-            if (response.chartRedirectState) {
-              // document.querySelectorAll(
-              //   'a[href^="https://in.tradingview.com/chart/?symbol=NSE:"]'
-              // );
-              links = document.querySelectorAll(
-                'a[href^="https://in.tradingview.com/chart/?symbol=NSE:"]'
-              );
-            } else {
-              links = document.querySelectorAll('a[href^="/stocks"]');
-            }
-            for (var i = 0; i < links.length; i++) {
-              // also add a button in every row to copy the ticker to clipboard
-              // skip every other one if the url is not dashboard
-              if (i % 2 !== 0 && !window.location.href.includes("/dashboard/"))
-                continue;
-              // check if copy button already exists
-              if (links[i].parentNode.querySelector(".copy-to-kite")) continue;
 
-              const copyButton = document.createElement("button");
-
-              copyButton.innerHTML = `<img src="https://kite.zerodha.com/static/images/browser-icons/apple-touch-icon-57x57.png" alt="copy" style="width: 20px; height: 20px; margin-bottom:-3px;">`;
-              copyButton.style.backgroundColor = "transparent";
-              copyButton.style.border = "none";
-              copyButton.style.cursor = "pointer";
-              copyButton.style.marginLeft = "5px";
-              // add classnames to the button
-              copyButton.className = "copy-to-kite";
-
-              copyButton.onclick = function () {
-                const parentNode = copyButton.parentNode;
-                const aTagInParentNode = parentNode.querySelector("a");
-                const href = aTagInParentNode.href;
-                chrome.runtime.sendMessage({
-                  message: "redirectToKite",
-                  href: href,
-                });
-              };
-              links[i].parentNode.appendChild(copyButton);
-            }
+      // Get the chart redirect state again
+      chrome.runtime.sendMessage(
+        { message: "getChartRedirectState" },
+        function (response) {
+          var links = [];
+          if (response.chartRedirectState) {
+            // Find all links with href starting with "https://in.tradingview.com/chart/?symbol=NSE:"
+            links = document.querySelectorAll(
+              'a[href^="https://in.tradingview.com/chart/?symbol=NSE:"]'
+            );
+          } else {
+            // Find all links with href starting with "/stocks"
+            links = document.querySelectorAll('a[href^="/stocks"]');
           }
-        );
-      }
+
+          for (var i = 0; i < links.length; i++) {
+            // Skip every other link if not on the dashboard page
+            if (i % 2 !== 0 && !window.location.href.includes("/dashboard/")) {
+              continue;
+            }
+
+            // Skip if a copy button already exists
+            if (links[i].parentNode.querySelector(".copy-to-kite")) {
+              continue;
+            }
+
+            // Create a copy button
+            const copyButton = document.createElement("button");
+            copyButton.innerHTML = `<img src="https://kite.zerodha.com/static/images/browser-icons/apple-touch-icon-57x57.png" alt="copy" style="width: 20px; height: 20px; margin-bottom:-3px;">`;
+            copyButton.style.backgroundColor = "transparent";
+            copyButton.style.border = "none";
+            copyButton.style.cursor = "pointer";
+            copyButton.style.marginLeft = "5px";
+            copyButton.className = "copy-to-kite";
+
+            // Add an onclick event to the copy button
+            copyButton.onclick = function () {
+              const parentNode = copyButton.parentNode;
+              const aTagInParentNode = parentNode.querySelector("a");
+              const href = aTagInParentNode.href;
+              // Send a message to the background script to redirect to Kite with the copied link
+              chrome.runtime.sendMessage({
+                message: "redirectToKite",
+                href: href,
+              });
+            };
+
+            // Append the copy button to the parent node of the link
+            links[i].parentNode.appendChild(copyButton);
+          }
+        }
+      );
     }
   );
 }
 
+/**
+ * Extracts the symbol from the URL based on the URL format.
+ * @param {string} url - The URL of the link.
+ * @returns {string|null} - The extracted symbol or null if not found.
+ */
 function compatabilitySymbolFunc(url) {
-  // if url contain stocks-new then use the search params
   if (url.includes("stocks-new")) {
     return new URL(url).searchParams.get("symbol");
   }
-  // else use the last part of the url before .html and and after /
   return url.substring(url.lastIndexOf("/") + 1, url.lastIndexOf(".html"));
 }
 
+// Create a mutation observer to detect changes in the DOM
 var observer = new MutationObserver(function (mutations) {
   mutations.forEach(function (mutation) {
     setTimeout(function () {
@@ -135,12 +158,18 @@ var config = {
   subtree: true,
 };
 
+// Observe the document body for changes
 observer.observe(document.body, config);
 
-// chart ink screener button class
 const screenerButtonsClass = "btn btn-default btn-primary";
 
-// add a button to the screener
+/**
+ * Adds a copy button to the TradingView screener buttons.
+ * @param {string} buttonText - The text to display on the button.
+ * @param {string} buttonClass - The CSS class of the button.
+ * @param {string} buttonId - The ID of the button.
+ * @param {function} buttonFunction - The function to execute when the button is clicked.
+ */
 const addCopyToTradingViewButton = (
   buttonText,
   buttonClass,
@@ -158,7 +187,7 @@ const addCopyToTradingViewButton = (
   screenerButtonsParent.appendChild(screenerButton);
 };
 
-// add a button to the screener
+// Add a copy button to the TradingView screener buttons
 addCopyToTradingViewButton(
   "Copy to TradingView",
   "btn btn-default btn-primary",
@@ -166,18 +195,20 @@ addCopyToTradingViewButton(
   copyAllTickersOnScreen
 );
 
+/**
+ * Gets the length of the pagination.
+ * @returns {number} - The length of the pagination.
+ */
 function getPaginationLength() {
-  //Get li tags of the pagination list
   const paginationList = document
     .getElementsByClassName("pagination")[0]
     .getElementsByTagName("li");
 
-  // Second last pagination element contains the last page number
   return paginationList[paginationList.length - 2].innerText;
 }
 
+// Clicks the next page button
 function nextPage() {
-  //   click <a> tag with inner text of "Next"
   document
     .evaluate(
       "//a[text()='Next']",
@@ -189,37 +220,46 @@ function nextPage() {
     .singleNodeValue.click();
 }
 
+/**
+ * Gets the number of stocks displayed on the screen.
+ * @returns {number} - The number of stocks.
+ */
 function getNumberOfStocks() {
-  // get el with class dataTables_info
   const el = document.getElementsByClassName("dataTables_info")[0];
   const innerText = el.innerText;
-  //   get the first number from the inner text
   const numberOfStocks = innerText.match(/\d+/)[0];
   return numberOfStocks;
 }
 
+/**
+ * Delays the execution of the code.
+ * @param {number} t - The delay time in milliseconds.
+ * @returns {Promise} - A promise that resolves after the delay.
+ */
 const delay = (t) => {
   return new Promise((res) => setTimeout(res, t));
 };
 
+/**
+ * Copies all the tickers on the screen to the clipboard.
+ */
 async function copyAllTickersOnScreen() {
-  // if redirect to trading view is not enabled, return
+  // Get the chart redirect state from the background script
   chrome.runtime.sendMessage(
     { message: "getChartRedirectState" },
     async function (response) {
       if (response.chartRedirectState) {
-        let allTickersArray = []; // date header is added to the top of the list for trading view WL header, as request by Pattabhi Chekka
-
+        let allTickersArray = [];
         let allTags = [];
-
         const numberOfPages = getPaginationLength();
 
+        // Iterate through each page
         for (let i = 0; i < numberOfPages; i++) {
-          // if its the second page or more, wait for 2 seconds for the anchor tags to change
           if (i > 0) {
             await delay(200);
           }
 
+          // Find all tags with href starting with "https://in.tradingview.com/chart/?symbol=NSE:"
           allTags.push(
             document.querySelectorAll(
               'a[href^="https://in.tradingview.com/chart/?symbol=NSE:"]'
@@ -229,48 +269,49 @@ async function copyAllTickersOnScreen() {
           nextPage();
         }
 
-        // merge all arrays into one
-
+        // Flatten the array of tags
         const allTickers = allTags.map((tag) => Array.from(tag)).flat();
 
-        // get all tickers from the a tags
+        // Extract the symbols from the URLs and add them to the tickers array
         allTickers.forEach((ticker) => {
-          console.log(ticker);
           allTickersArray.push(
             replaceSpecialCharsWithUnderscore(
               extracrtSymbolFromURL(ticker.href)
             )
           );
         });
-        // add :NSE to the tickers
+
+        // Add "NSE:" prefix to the tickers
         allTickersArray = addColonNSEtoTickers(allTickersArray);
 
+        // Create a fake textarea to copy the tickers to the clipboard
         createFakeTextAreaToCopyText(
           [...removeDuplicateTickers(allTickersArray)].join(", ")
         );
         replaceButtonText("add-to-watchlist");
         return;
       }
-      let allTickersArray = []; // date header is added to the top of the list for trading view WL header, as request by Pattabhi Chekka
 
+      let allTickersArray = [];
       let allTags = [];
-
       const numberOfPages = getPaginationLength();
 
+      // Iterate through each page
       for (let i = 0; i < numberOfPages; i++) {
-        // if its the second page or more, wait for 2 seconds for the anchor tags to change
         if (i > 0) {
           await delay(200);
         }
 
+        // Find all tags with href starting with "/stocks/"
         allTags.push(document.querySelectorAll('a[href^="/stocks/"]'));
 
         nextPage();
       }
 
+      // Flatten the array of tags
       const allTickers = allTags.map((tag) => Array.from(tag)).flat();
 
-      // get all tickers from the a tags
+      // Extract the symbols from the URLs and add them to the tickers array
       allTickers.forEach((ticker) => {
         allTickersArray.push(
           replaceSpecialCharsWithUnderscore(
@@ -278,9 +319,11 @@ async function copyAllTickersOnScreen() {
           )
         );
       });
-      // add :NSE to the tickers
+
+      // Add "NSE:" prefix to the tickers
       allTickersArray = addColonNSEtoTickers(allTickersArray);
 
+      // Create a fake textarea to copy the tickers to the clipboard
       createFakeTextAreaToCopyText(
         [...removeDuplicateTickers(allTickersArray)].join(", ")
       );
@@ -289,7 +332,10 @@ async function copyAllTickersOnScreen() {
   );
 }
 
-// replace button text for 2 seconds
+/**
+ * Replaces the text of a button with a success message and then restores it after a delay.
+ * @param {string} buttonId - The ID of the button.
+ */
 function replaceButtonText(buttonId) {
   const button = document.getElementById(buttonId);
   if (!button) return;
@@ -299,35 +345,53 @@ function replaceButtonText(buttonId) {
   }, 2000);
 }
 
+/**
+ * Creates a fake textarea, copies the text to it, and then copies the text from the textarea to the clipboard.
+ * @param {string} text - The text to copy to the clipboard.
+ */
 function createFakeTextAreaToCopyText(text) {
   const fakeTextArea = document.createElement("textarea");
-  fakeTextArea.value = dateHeader + "," + text;
+  fakeTextArea.value = `${dateHeader},${text}`;
   document.body.appendChild(fakeTextArea);
   fakeTextArea.select();
   document.execCommand("copy");
   document.body.removeChild(fakeTextArea);
 }
 
+/**
+ * Removes duplicate tickers from an array.
+ * @param {string[]} tickers - The array of tickers.
+ * @returns {string[]} - The array of tickers with duplicates removed.
+ */
 function removeDuplicateTickers(tickers) {
   return [...new Set(tickers)];
 }
 
+/**
+ * Adds "NSE:" prefix to each ticker in an array.
+ * @param {string[]} tickers - The array of tickers.
+ * @returns {string[]} - The array of tickers with "NSE:" prefix added.
+ */
 function addColonNSEtoTickers(tickers) {
-  return tickers.map((ticker) => "NSE:" + ticker);
+  return tickers.map((ticker) => `NSE:${ticker}`);
 }
 
+/**
+ * Replaces special characters in a ticker with underscores.
+ * @param {string} ticker - The ticker.
+ * @returns {string} - The ticker with special characters replaced.
+ */
 function replaceSpecialCharsWithUnderscore(ticker) {
   return ticker.replace(/[^a-zA-Z0-9]/g, "_");
 }
 
+/**
+ * Adds copy buttons to the TradingView charts.
+ */
 const addCopyBtOnTradingView = () => {
-  // add an onclick alert to all the <i> tags wit class "far fa-copy mr-1"
   const copyBts = document.querySelectorAll('i[class="far fa-copy mr-1"]');
   copyBts.forEach((copyBt) => {
-    // add onclick event to the sibling span tag
-
     copyBt.style.fontSize = "20px";
-    // add an onclick event
     copyBt.onclick = (e) => {
       e.stopPropagation();
       const tables =
@@ -339,13 +403,12 @@ const addCopyBtOnTradingView = () => {
       );
       let allTickersArray = [];
 
-      // get all tickers from the a tags
       allTickers.forEach((ticker) => {
         allTickersArray.push(
           replaceSpecialCharsWithUnderscore(ticker.href.substring(45))
         );
       });
-      // add :NSE to the tickers
+
       allTickersArray = addColonNSEtoTickers(allTickersArray);
       createFakeTextAreaToCopyText(
         removeDuplicateTickers(allTickersArray).join(",")
@@ -354,12 +417,25 @@ const addCopyBtOnTradingView = () => {
     };
   });
 };
+
+// Add copy buttons to the TradingView charts
 addCopyBtOnTradingView();
+
+/**
+ * Removes the ".html" extension from a ticker.
+ * @param {string} ticker - The ticker.
+ * @returns {string} - The ticker without the ".html" extension.
+ */
 function removeDotHTML(ticker) {
   return ticker.replace(".html", "");
 }
+
+/**
+ * Extracts the symbol from the URL.
+ * @param {string} url - The URL of the link.
+ * @returns {string|null} - The extracted symbol or null if not found.
+ */
 function extracrtSymbolFromURL(url) {
-  // symbol is end of the url after NSE:
   const urlParams = new URLSearchParams(new URL(url).search);
   const symbol = urlParams.get("symbol");
   return symbol ? symbol.split(":")[1] : null;
