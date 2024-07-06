@@ -30,40 +30,6 @@ function changeURL() {
         ].href = `https://in.tradingview.com/chart/?symbol=NSE:${compatabilitySymbolFunc(
           links[i].href
         )}`;
-
-        // Skip every other link if not on the dashboard page
-        if (i % 2 !== 0 && !window.location.href.includes("/dashboard/")) {
-          continue;
-        }
-
-        // Skip if a copy button already exists
-        if (links[i].parentNode.querySelector(".copy-to-kite")) {
-          continue;
-        }
-
-        // Create a copy button
-        const copyButton = document.createElement("button");
-        copyButton.innerHTML = `<img src="https://kite.zerodha.com/static/images/browser-icons/apple-touch-icon-57x57.png" alt="copy" style="width: 20px; height: 20px; margin-bottom:-3px;">`;
-        copyButton.style.backgroundColor = "transparent";
-        copyButton.style.border = "none";
-        copyButton.style.cursor = "pointer";
-        copyButton.style.marginLeft = "5px";
-        copyButton.className = "copy-to-kite";
-
-        // Add an onclick event to the copy button
-        copyButton.onclick = function () {
-          const parentNode = copyButton.parentNode;
-          const aTagInParentNode = parentNode.querySelector("a");
-          const href = aTagInParentNode.href;
-          // Send a message to the background script to redirect to Kite with the copied link
-          chrome.runtime.sendMessage({
-            message: "redirectToKite",
-            href: href,
-          });
-        };
-
-        // Append the copy button to the parent node of the link
-        links[i].parentNode.appendChild(copyButton);
       }
     }
   );
@@ -296,30 +262,28 @@ async function copyAllTickersOnScreen() {
       let allTags = [];
       const numberOfPages = getPaginationLength();
 
+      console.log(numberOfPages);
       // Iterate through each page
       for (let i = 0; i < numberOfPages; i++) {
         if (i > 0) {
           await delay(200);
         }
 
-        // Find all tags with href starting with "/stocks/"
-        allTags.push(document.querySelectorAll('a[href^="/stocks/"]'));
+        allTags.push(document.querySelectorAll('a[href^="/stocks-new"]'));
 
         nextPage();
       }
-
+      console.log(allTags);
       // Flatten the array of tags
       const allTickers = allTags.map((tag) => Array.from(tag)).flat();
-
       // Extract the symbols from the URLs and add them to the tickers array
       allTickers.forEach((ticker) => {
         allTickersArray.push(
           replaceSpecialCharsWithUnderscore(
-            removeDotHTML(ticker.href.substring(28))
+            extractSymbolFromTradingViewURL(ticker.href)
           )
         );
       });
-
       // Add "NSE:" prefix to the tickers
       allTickersArray = addColonNSEtoTickers(allTickersArray);
 
@@ -439,4 +403,14 @@ function extracrtSymbolFromURL(url) {
   const urlParams = new URLSearchParams(new URL(url).search);
   const symbol = urlParams.get("symbol");
   return symbol ? symbol.split(":")[1] : null;
+}
+function extractSymbolFromTradingViewURL(url) {
+  if (url.includes("NSE:")) {
+    return url.split("/")[4].split(":")[1];
+  } else if (url.includes("/stocks-new")) {
+    const urlParams = new URLSearchParams(url);
+    return urlParams.get("symbol");
+  } else if (url.includes("/stocks/")) {
+    return url.split("/").pop().replace(".html", "");
+  }
 }
