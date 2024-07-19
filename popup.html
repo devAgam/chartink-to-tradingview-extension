@@ -7,14 +7,30 @@
     <script src="redirectState.function.js"></script>
   </head>
   <body class="popup">
-    <header>
-      <p>Chartink to TradingView</p>
-    </header>
-    <section class="settings">
-      <div class="setting">
-        <p>Chart Redirect</p>
+    <div class="chartink-to-tv-container">
+      <h1>Chartink To TradingView</h1>
+      <p class="description">By devAgam</p>
+      <label class="checkbox-container">
         <input type="checkbox" id="redirect" name="redirect" />
-      </div>
-    </section>
+        <span class="checkmark"></span>
+        Chart Redirects To TradingView
+      </label>
+      <label class="checkbox-container">
+        <input type="checkbox" id="kite-bt" name="kite-bt" />
+        <span class="checkmark"></span>
+        Open Chart in Kite Button
+      </label>
+      <!-- dropdown to select between Kite chart TradingView or ChartIQ -->
+      <label class="chart-type" for="chart-type">Kite Chart:</label>
+      <select class="chart-dropdown" id="chart-type" name="chart-type">
+        <option value="tvc">TradingView</option>
+        <option value="ciq">ChartIQ</option>
+      </select>
+
+      <br />
+      <a class="donate-bt" href="https://agamjot.ca/donate" target="_blank"
+        >Donate</a
+      >
+    </div>
   </body>
 </html>
