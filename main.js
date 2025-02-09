@@ -353,7 +353,7 @@ function replaceSpecialCharsWithUnderscore(ticker) {
  * Adds copy buttons to the TradingView charts.
  */
 const addCopyBtOnTradingView = () => {
-  const copyBts = document.querySelectorAll('i[class="far fa-copy mr-1"]');
+  const copyBts = document.querySelectorAll('div[title="Copy widget"]');
   copyBts.forEach((copyBt) => {
     copyBt.style.fontSize = "20px";
     copyBt.onclick = (e) => {
