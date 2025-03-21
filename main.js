@@ -356,10 +356,17 @@ const addCopyBtOnTradingView = () => {
   const copyBts = document.querySelectorAll('div[title="Copy widget"]');
   copyBts.forEach((copyBt) => {
     copyBt.style.fontSize = "20px";
-    copyBt.onclick = (e) => {
+
+    // Replace the original element with a clone to remove all event listeners
+    const newCopyBt = copyBt.cloneNode(true);
+    copyBt.parentNode.replaceChild(newCopyBt, copyBt);
+
+    newCopyBt.onclick = (e) => {
       e.stopPropagation();
+      e.preventDefault();
+
       const tables =
-        copyBt.parentNode.parentNode.parentNode.parentNode.parentNode.querySelector(
+        newCopyBt.parentNode.parentNode.parentNode.parentNode.parentNode.querySelector(
           "table"
         );
       const allTickers = tables.querySelectorAll(
@@ -377,7 +384,11 @@ const addCopyBtOnTradingView = () => {
       createFakeTextAreaToCopyText(
         removeDuplicateTickers(allTickersArray).join(",")
       );
+
+      // Use the existing button update logic instead of alert
       alert("Copied to clipboard 📋");
+
+      return false;
     };
   });
 };
