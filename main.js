@@ -366,7 +366,7 @@ const addCopyBtOnTradingView = () => {
       e.preventDefault();
 
       const tables =
-        newCopyBt.parentNode.parentNode.parentNode.parentNode.parentNode.querySelector(
+        newCopyBt.parentNode.parentNode.parentNode.parentNode.parentNode.parentNode.querySelector(
           "table"
         );
       const allTickers = tables.querySelectorAll(
