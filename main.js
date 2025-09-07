@@ -136,6 +136,9 @@ var config = {
 observer.observe(document.body, config);
 
 const screenerButtonsClass = "flex justify-between items-enter px-4 py-4";
+const SHORTCUT_CHECKBOX_ID = "enable-shortcut-copy";
+const STORAGE_KEY_ENABLE_SHORTCUT = "enableShortcutCopy";
+let enableShortcutCopyState = false;
 
 /**
  * Adds a copy button to the TradingView screener buttons.
@@ -169,11 +172,47 @@ addCopyToTradingViewButton(
   copyAllTickersOnScreen
 );
 
+// Initialize shortcut state in content script and keybinding (UI lives in popup)
+chrome.runtime.sendMessage(
+  { message: "getShortcutEnabled" },
+  function (response) {
+    enableShortcutCopyState = Boolean(response && response.shortcutEnabled);
+  }
+);
+
+window.addEventListener("keydown", (e) => {
+  if (!enableShortcutCopyState) return;
+  const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+  const mod = isMac ? e.metaKey : e.ctrlKey;
+  if (mod && e.shiftKey && (e.key === "C" || e.key === "c")) {
+    e.preventDefault();
+    copyAllTickersOnScreen();
+  }
+});
+
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (!request || !request.message) return;
+  if (request.message === "pushShortcutEnabled") {
+    enableShortcutCopyState = !!request.state;
+  } else if (request.message === "downloadCSV") {
+    downloadAllTickersAsCSV();
+  } else if (request.message === "copyTickers") {
+    copyAllTickersOnScreen();
+  }
+});
+
 /**
  * Gets the length of the pagination.
  * @returns {number} - The length of the pagination.
  */
 function getPaginationLength() {
+  // make sure we are on the first page
+  // find a button with text "1"
+  const firstPageButton = Array.from(
+    document.querySelectorAll("button.px-2\\.5")
+  ).find((button) => button.textContent.trim() === "1");
+  if (firstPageButton) firstPageButton.click();
+
   const nextButton = document.querySelector("button.px-2\\.5");
   if (!nextButton) return 0;
 
@@ -371,6 +410,166 @@ function createFakeTextAreaToCopyText(text) {
   fakeTextArea.select();
   document.execCommand("copy");
   document.body.removeChild(fakeTextArea);
+}
+
+// Create and download a CSV file from provided rows (array of arrays)
+function downloadCSV(filename, rows) {
+  const csv = rows
+    .map((r) =>
+      r.map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")
+    )
+    .join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// Collect tickers exactly like copyAllTickersOnScreen but return snapshots and tickers
+async function collectAllTickersSnapshots() {
+  return new Promise((resolve) => {
+    chrome.runtime.sendMessage(
+      { message: "getChartRedirectState" },
+      async function (response) {
+        let allTags = [];
+        let allTickersArray = [];
+        const numberOfPages = getPaginationLength();
+
+        if (response.chartRedirectState) {
+          for (let i = 0; i < numberOfPages; i++) {
+            if (i > 0) await delay(200);
+            allTags.push(
+              Array.from(
+                document.querySelectorAll(
+                  'a[href^="https://in.tradingview.com/chart/?symbol=NSE:"]'
+                )
+              ).map((a) => ({
+                text: (a.textContent || "").trim(),
+                href: a.href,
+              }))
+            );
+            nextPage();
+          }
+          const allTickers = allTags.flat();
+          allTickers.forEach((ticker) => {
+            allTickersArray.push(
+              replaceSpecialCharsWithUnderscore(
+                extracrtSymbolFromURL(ticker.href)
+              )
+            );
+          });
+        } else {
+          for (let i = 0; i < numberOfPages; i++) {
+            if (i > 0) await delay(200);
+            allTags.push(
+              Array.from(
+                document.querySelectorAll('a[href^="/stocks-new"]')
+              ).map((a) => ({
+                text: (a.textContent || "").trim(),
+                href: a.href,
+              }))
+            );
+            nextPage();
+          }
+          const allTickers = allTags.flat();
+          allTickers.forEach((ticker) => {
+            allTickersArray.push(
+              replaceSpecialCharsWithUnderscore(
+                extractSymbolFromTradingViewURL(ticker.href)
+              )
+            );
+          });
+        }
+
+        allTickersArray = addColonNSEtoTickers(allTickersArray);
+        resolve({
+          snapshots: allTags.flat(),
+          tickers: removeDuplicateTickers(allTickersArray),
+        });
+      }
+    );
+  });
+}
+
+// Download all tickers as CSV
+async function downloadAllTickersAsCSV() {
+  const { snapshots, tickers } = await collectAllTickersSnapshots();
+  const rows = [
+    ["date", "symbol", "text", "href"],
+    ...tickers.map((t, idx) => [
+      new Date().toISOString(),
+      t,
+      snapshots[idx] ? snapshots[idx].text : "",
+      snapshots[idx] ? snapshots[idx].href : "",
+    ]),
+  ];
+  downloadCSV(
+    `tickers-${new Date()
+      .toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      })
+      .replace(/ /g, "-")}_${new Date()
+      .toLocaleTimeString("en-GB", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      })
+      .toLowerCase()
+      .replace(" ", "")}.csv`,
+    rows
+  );
+  replaceButtonText("download-csv");
+}
+
+// Add shortcut checkbox next to buttons
+function addShortcutCheckbox() {
+  const screenerButtons = document.getElementsByClassName(screenerButtonsClass);
+  if (screenerButtons.length === 0) return;
+  const parent = screenerButtons[0];
+  if (document.getElementById(SHORTCUT_CHECKBOX_ID)) return;
+  const label = document.createElement("label");
+  label.style.marginLeft = "8px";
+  const cb = document.createElement("input");
+  cb.type = "checkbox";
+  cb.id = SHORTCUT_CHECKBOX_ID;
+  cb.style.marginRight = "4px";
+  label.appendChild(cb);
+  label.appendChild(
+    document.createTextNode("Enable shortcut (Cmd/Ctrl+Shift+C)")
+  );
+  parent.appendChild(label);
+  cb.addEventListener("change", () => {
+    enableShortcutCopyState = cb.checked;
+    chrome.storage.sync.set({
+      [STORAGE_KEY_ENABLE_SHORTCUT]: enableShortcutCopyState,
+    });
+  });
+}
+
+// Initialize shortcut state and keybinding
+function initShortcutCheckbox() {
+  chrome.storage.sync.get([STORAGE_KEY_ENABLE_SHORTCUT], (res) => {
+    enableShortcutCopyState = Boolean(res[STORAGE_KEY_ENABLE_SHORTCUT]);
+    const cb = document.getElementById(SHORTCUT_CHECKBOX_ID);
+    if (cb) cb.checked = enableShortcutCopyState;
+  });
+
+  window.addEventListener("keydown", (e) => {
+    if (!enableShortcutCopyState) return;
+    const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+    const mod = isMac ? e.metaKey : e.ctrlKey;
+    if (mod && e.shiftKey && (e.key === "C" || e.key === "c")) {
+      e.preventDefault();
+      copyAllTickersOnScreen();
+    }
+  });
 }
 
 /**

@@ -108,6 +108,36 @@ async function handleRuntimeMessage(request, sendResponse) {
     case "setKiteChartType":
       setKiteChartType(request.type);
       break;
+    case "getShortcutEnabled":
+      chrome.storage.local.get("shortcutEnabled", (result) => {
+        sendResponse({ shortcutEnabled: !!result.shortcutEnabled });
+      });
+      break;
+    case "setShortcutEnabled":
+      chrome.storage.local.set({ shortcutEnabled: !!request.state });
+      chrome.tabs.query({ url: "*://*.chartink.com/*" }, (tabs) => {
+        tabs.forEach((t) =>
+          chrome.tabs.sendMessage(t.id, {
+            message: "pushShortcutEnabled",
+            state: !!request.state,
+          })
+        );
+      });
+      break;
+    case "triggerDownloadCSV":
+      chrome.tabs.query({ url: "*://*.chartink.com/*" }, (tabs) => {
+        tabs.forEach((t) =>
+          chrome.tabs.sendMessage(t.id, { message: "downloadCSV" })
+        );
+      });
+      break;
+    case "triggerCopyTickers":
+      chrome.tabs.query({ url: "*://*.chartink.com/*" }, (tabs) => {
+        tabs.forEach((t) =>
+          chrome.tabs.sendMessage(t.id, { message: "copyTickers" })
+        );
+      });
+      break;
     default:
       break;
   }
@@ -146,4 +176,9 @@ async function redirectToKite(symbol, instrumentToken) {
 chrome.runtime.onInstalled.addListener(() => {
   setChartRedirectState(true);
   setKiteEnabled(true);
+  chrome.storage.local.get("shortcutEnabled", (r) => {
+    if (typeof r.shortcutEnabled === "undefined") {
+      chrome.storage.local.set({ shortcutEnabled: false });
+    }
+  });
 });

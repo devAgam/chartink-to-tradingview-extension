@@ -104,3 +104,44 @@ function updateKiteChartType() {
 document.addEventListener("DOMContentLoaded", updateKiteCheckBoxState);
 document.addEventListener("DOMContentLoaded", attachToKiteChartType);
 document.addEventListener("DOMContentLoaded", updateKiteChartType);
+
+// SHORTCUT + ACTIONS UI
+function attachShortcutCheckbox() {
+  var cb = document.getElementById("enable-shortcut");
+  if (!cb) return;
+  cb.addEventListener("change", function () {
+    chrome.storage.local.set({ shortcutEnabled: !!this.checked }, function () {
+      chrome.runtime.sendMessage({
+        message: "setShortcutEnabled",
+        state: !!cb.checked,
+      });
+    });
+  });
+}
+
+function updateShortcutCheckbox() {
+  chrome.storage.local.get("shortcutEnabled", function (result) {
+    var cb = document.getElementById("enable-shortcut");
+    if (!cb) return;
+    cb.defaultChecked = !!result.shortcutEnabled;
+  });
+}
+
+function attachPopupButtons() {
+  var copyBt = document.getElementById("popup-copy");
+  var dlBt = document.getElementById("popup-download");
+  if (copyBt) {
+    copyBt.addEventListener("click", function () {
+      chrome.runtime.sendMessage({ message: "triggerCopyTickers" });
+    });
+  }
+  if (dlBt) {
+    dlBt.addEventListener("click", function () {
+      chrome.runtime.sendMessage({ message: "triggerDownloadCSV" });
+    });
+  }
+}
+
+document.addEventListener("DOMContentLoaded", attachShortcutCheckbox);
+document.addEventListener("DOMContentLoaded", updateShortcutCheckbox);
+document.addEventListener("DOMContentLoaded", attachPopupButtons);
