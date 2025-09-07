@@ -23,7 +23,7 @@ function changeURL() {
       if (!response.chartRedirectState) {
         return;
       }
-      console.log("triggering changeURL");
+
       // Find all links with href starting with "/stocks"
       var links = document.querySelectorAll('a[href^="/stocks"]');
       for (var i = 0; i < links.length; i++) {
