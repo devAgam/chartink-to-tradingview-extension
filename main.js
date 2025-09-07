@@ -38,11 +38,6 @@ function changeURL() {
         ].href = `https://in.tradingview.com/chart/?symbol=NSE:${compatabilitySymbolFunc(
           links[i].href
         )}`;
-        console.log(
-          compatabilitySymbolFunc(links[i].href),
-          links[i].href,
-          links[i].innerText
-        );
       }
     }
   );
@@ -195,7 +190,6 @@ function getPaginationLength() {
   if (!nextPageButton) return 0;
 
   const previousElement = nextPageButton.previousElementSibling;
-  console.log(previousElement.textContent);
   return parseInt(previousElement.textContent);
 }
 
@@ -306,7 +300,6 @@ async function copyAllTickersOnScreen() {
       let allTags = [];
       const numberOfPages = getPaginationLength();
 
-      console.log(numberOfPages);
       // Iterate through each page
       for (let i = 0; i < numberOfPages; i++) {
         if (i > 0) {
@@ -322,7 +315,6 @@ async function copyAllTickersOnScreen() {
 
         nextPage();
       }
-      console.log(allTags);
       // Flatten the array of page snapshots
       const allTickers = allTags.flat();
       // Extract the symbols from the URLs and add them to the tickers array
