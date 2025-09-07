@@ -178,15 +178,21 @@ function getPaginationLength() {
 
 // Clicks the next page button
 function nextPage() {
-  document
-    .evaluate(
-      "//a[text()='Next']",
-      document,
-      null,
-      XPathResult.FIRST_ORDERED_NODE_TYPE,
-      null
-    )
-    .singleNodeValue.click();
+  const nextButton = document.querySelector("button.px-2\\.5");
+  if (!nextButton) return 0;
+
+  // Find the specific Next button by checking its text content
+  const allButtons = document.querySelectorAll("button.px-2\\.5");
+  let nextPageButton;
+  for (const button of allButtons) {
+    if (button.textContent.trim() === "Next") {
+      nextPageButton = button;
+      break;
+    }
+  }
+
+  if (!nextPageButton) return 0;
+  nextPageButton.click();
 }
 
 /**
