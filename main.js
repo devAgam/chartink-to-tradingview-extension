@@ -316,11 +316,6 @@ async function copyAllTickersOnScreen() {
           if (i > 0) {
             await delay(200);
           }
-          console.log(
-            document.querySelectorAll(
-              'a[href^="https://in.tradingview.com/chart/?symbol=NSE:"]'
-            )
-          );
           // Capture immutable snapshots (text + href) for this page
           allTags.push(
             Array.from(
