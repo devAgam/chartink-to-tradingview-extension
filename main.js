@@ -8,6 +8,9 @@ const dateHeader = `### ${new Date().toLocaleDateString("en-GB", {
   year: "numeric",
 })}`;
 
+// Feature flag: enable/disable element-to-symbol logging
+const ENABLE_TICKER_SYMBOL_LOGS = false;
+
 /**
  * Changes the URL of certain links on the page based on the chart redirect state and kite enabled state.
  * Adds a copy button next to the modified links.
@@ -249,6 +252,16 @@ async function copyAllTickersOnScreen() {
 
         // Add "NSE:" prefix to the tickers
         allTickersArray = addColonNSEtoTickers(allTickersArray);
+        if (ENABLE_TICKER_SYMBOL_LOGS) {
+          console.log(
+            "Element->Symbol",
+            allTickers.map((el) => ({
+              text: el.text,
+              href: el.href,
+              symbol: extracrtSymbolFromURL(el.href),
+            }))
+          );
+        }
 
         // Create a fake textarea to copy the tickers to the clipboard
         createFakeTextAreaToCopyText(
@@ -286,6 +299,16 @@ async function copyAllTickersOnScreen() {
       });
       // Add "NSE:" prefix to the tickers
       allTickersArray = addColonNSEtoTickers(allTickersArray);
+      if (ENABLE_TICKER_SYMBOL_LOGS) {
+        console.log(
+          "Element->Symbol",
+          allTickers.map((el) => ({
+            text: el.text,
+            href: el.href,
+            symbol: extractSymbolFromTradingViewURL(el.href),
+          }))
+        );
+      }
 
       // Create a fake textarea to copy the tickers to the clipboard
       createFakeTextAreaToCopyText(
