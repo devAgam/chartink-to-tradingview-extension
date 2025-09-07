@@ -1,5 +1,6 @@
 window.onload = function () {
   changeURL();
+  injectTradingViewWidget();
 };
 
 const dateHeader = `### ${new Date().toLocaleDateString("en-GB", {
@@ -10,6 +11,93 @@ const dateHeader = `### ${new Date().toLocaleDateString("en-GB", {
 
 // Feature flag: enable/disable element-to-symbol logging
 const ENABLE_TICKER_SYMBOL_LOGS = false;
+
+/**
+ * Injects a TradingView mini symbol overview widget at the bottom of the page.
+ * Safe to call multiple times; it won't inject duplicates.
+ */
+function injectTradingViewWidget() {
+  try {
+    if (document.querySelector(".tradingview-widget-container")) return;
+
+    const container = document.createElement("div");
+    container.className = "tradingview-widget-container";
+    container.style.height = "100%";
+    container.style.width = "100%";
+
+    const widgetDiv = document.createElement("div");
+    widgetDiv.className = "tradingview-widget-container__widget";
+    widgetDiv.style.height = "calc(100% - 32px)";
+    widgetDiv.style.width = "100%";
+
+    // Build iframe-based Advanced Chart embed to avoid script-src CSP blocks
+    const cfg = {
+      allow_symbol_change: true,
+      calendar: false,
+      details: false,
+      hide_side_toolbar: true,
+      hide_top_toolbar: false,
+      hide_legend: false,
+      hide_volume: false,
+      hotlist: false,
+      interval: "D",
+      locale: "en",
+      save_image: true,
+      style: "1",
+      symbol: "NASDAQ:AAPL",
+      theme: "dark",
+      timezone: "Etc/UTC",
+      backgroundColor: "#0F0F0F",
+      gridColor: "rgba(242, 242, 242, 0.06)",
+      watchlist: [],
+      withdateranges: false,
+      compareSymbols: [],
+      studies: [],
+      autosize: true,
+    };
+
+    const iframe = document.createElement("iframe");
+    iframe.src =
+      "https://s.tradingview.com/embed-widget/advanced-chart/?locale=en#" +
+      encodeURIComponent(JSON.stringify(cfg));
+    iframe.style.width = "100%";
+    iframe.style.height = "100%";
+    iframe.style.border = "none";
+    iframe.setAttribute("allowtransparency", "true");
+    iframe.setAttribute("scrolling", "no");
+
+    widgetDiv.appendChild(iframe);
+
+    // Attribution link below iframe
+    const copyrightDiv = document.createElement("div");
+    copyrightDiv.className = "tradingview-widget-copyright";
+    const link = document.createElement("a");
+    link.href =
+      "https://www.tradingview.com/symbols/NASDAQ-AAPL/?exchange=NASDAQ";
+    link.rel = "noopener nofollow";
+    link.target = "_blank";
+    const span = document.createElement("span");
+    span.className = "blue-text";
+    span.textContent = "AAPL chart by TradingView";
+    link.appendChild(span);
+    copyrightDiv.appendChild(link);
+
+    container.appendChild(widgetDiv);
+    container.appendChild(copyrightDiv);
+    document.body.appendChild(container);
+  } catch (e) {
+    try {
+      console.error("Failed to inject TradingView widget", e);
+    } catch (_) {}
+  }
+}
+
+// Attempt immediate injection if possible, otherwise wait for DOMContentLoaded
+if (document.body) {
+  injectTradingViewWidget();
+} else {
+  document.addEventListener("DOMContentLoaded", injectTradingViewWidget);
+}
 
 /**
  * Changes the URL of certain links on the page based on the chart redirect state and kite enabled state.
@@ -108,9 +196,395 @@ function changeURL() {
 
 // Schedule multiple passes of changeURL to cover async table redraws after pagination
 function scheduleChangeURL() {
-  setTimeout(changeURL, 1);
-  setTimeout(changeURL, 150);
-  setTimeout(changeURL, 400);
+  const run = function () {
+    changeURL();
+    bindChangeUrlToPagination();
+  };
+  setTimeout(run, 1);
+  setTimeout(run, 150);
+  setTimeout(run, 400);
+}
+
+// Debounced trigger for user interactions like hover/focus that may change DOM
+var hoverDebounceTimer = null;
+function scheduleFromUserInteraction() {
+  if (hoverDebounceTimer) return;
+  hoverDebounceTimer = setTimeout(function () {
+    hoverDebounceTimer = null;
+    observeCanvasAttributeChanges();
+    // Try to refresh chart when user interaction happens
+    try {
+      scheduleInjectTradingViewChart(getCurrentCanvasEl());
+    } catch (_) {}
+    scheduleChangeURL();
+  }, 120);
+}
+
+// Debounce chart injections to avoid thrashing on rapid hover updates
+var chartInjectDebounceTimer = null;
+function scheduleInjectTradingViewChart(el) {
+  if (!hoverChartBetaEnabled) return;
+  if (chartInjectDebounceTimer) {
+    clearTimeout(chartInjectDebounceTimer);
+  }
+  chartInjectDebounceTimer = setTimeout(function () {
+    chartInjectDebounceTimer = null;
+    injectTradingViewChart(el);
+  }, 80);
+}
+
+// Triggered when a new canvas element is added to the DOM
+var lastObservedCanvasTitleTxt = null;
+let hoverChartBetaEnabled = false;
+chrome.runtime.sendMessage(
+  { message: "getHoverChartBetaEnabled" },
+  function (response) {
+    hoverChartBetaEnabled = !!(response && response.hoverChartBetaEnabled);
+    if (hoverChartBetaEnabled) {
+      observeCanvasAttributeChanges();
+    }
+  }
+);
+function disableHoverChartFeature() {
+  try {
+    stopCanvasPoller();
+    if (canvasObserver) {
+      try {
+        canvasObserver.disconnect();
+      } catch (_) {}
+    }
+    var tooltipParent = document.getElementById("tooltip3");
+
+    if (tooltipParent) {
+      var iframe = tooltipParent.querySelector("iframe");
+      if (iframe) iframe.remove();
+    }
+    var canvas = document.getElementById("chartink-js-grid-0-canvas");
+    if (canvas) {
+      canvas.style.visibility = "";
+      canvas.style.pointerEvents = "";
+      canvas.style.position = "";
+      canvas.style.width = "";
+      canvas.style.height = "";
+    }
+  } catch (_) {}
+}
+// Keep the original canvas in DOM, hide it, and remove other siblings along the chain to #tooltip3
+
+// Move canvas directly under #tooltip3, hide it, and keep only that canvas (used on first inject)
+function ensureCanvasInTooltipAndHidden(tooltipParent, canvasEl) {
+  try {
+    if (!tooltipParent) return;
+    var keepCanvas =
+      document.getElementById("chartink-js-grid-0-canvas") ||
+      (canvasEl && canvasEl.querySelector
+        ? canvasEl.querySelector("#chartink-js-grid-0-canvas")
+        : null) ||
+      (canvasEl && canvasEl.nodeName === "CANVAS" ? canvasEl : null);
+    if (!keepCanvas) return;
+
+    // Preserve the wrapper with class chartink-grid-0 if present
+    var keepWrapper = null;
+    try {
+      if (keepCanvas.closest) {
+        var candidate = keepCanvas.closest(".chartink-grid-0");
+        if (candidate && tooltipParent.contains(candidate)) {
+          keepWrapper = candidate;
+        }
+      }
+    } catch (_) {}
+
+    // Ensure the preserved node is under tooltip: prefer wrapper if available
+    if (keepWrapper) {
+      if (keepWrapper.parentElement !== tooltipParent) {
+        try {
+          tooltipParent.appendChild(keepWrapper);
+        } catch (_) {}
+      }
+    } else {
+      if (keepCanvas.parentElement !== tooltipParent) {
+        try {
+          tooltipParent.appendChild(keepCanvas);
+        } catch (_) {}
+      }
+    }
+
+    // Remove everything in tooltip except the keepWrapper/keepCanvas and any existing iframe
+    var kids = Array.from(tooltipParent.childNodes);
+    for (var i = 0; i < kids.length; i++) {
+      var k = kids[i];
+      if (k === keepCanvas) continue;
+      if (keepWrapper && k === keepWrapper) continue;
+      if (k.nodeName === "IFRAME") continue;
+      tooltipParent.removeChild(k);
+    }
+
+    // If wrapper exists, clean its children except the canvas
+    if (keepWrapper) {
+      var wkids = Array.from(keepWrapper.childNodes);
+      for (var wi = 0; wi < wkids.length; wi++) {
+        var wk = wkids[wi];
+        if (wk !== keepCanvas) {
+          keepWrapper.removeChild(wk);
+        }
+      }
+    }
+
+    // Hide the canvas so it stays in DOM for attribute updates
+    try {
+      keepCanvas.style.visibility = "hidden";
+      keepCanvas.style.pointerEvents = "none";
+      keepCanvas.style.position = "absolute";
+      keepCanvas.style.width = "0px";
+      keepCanvas.style.height = "0px";
+    } catch (_) {}
+  } catch (e) {
+    try {
+      console.error("Failed to ensure canvas in tooltip", e);
+    } catch (_) {}
+  }
+}
+function injectTradingViewChart(canvasEl) {
+  try {
+    if (!hoverChartBetaEnabled) return;
+    console.log("injectTradingViewChart triggered");
+
+    // Prefer the actual canvas if provided a wrapper
+    var actualCanvas = null;
+    if (canvasEl && canvasEl.nodeName === "CANVAS") {
+      actualCanvas = canvasEl;
+    } else if (canvasEl && canvasEl.querySelector) {
+      actualCanvas =
+        canvasEl.querySelector("#chartink-js-grid-0-canvas") ||
+        canvasEl.querySelector("canvas");
+    }
+
+    var titleTxt = null;
+    if (actualCanvas) {
+      titleTxt = actualCanvas.getAttribute("title_txt");
+    }
+    if (!titleTxt && canvasEl) {
+      titleTxt = canvasEl.getAttribute("title_txt");
+    }
+    // Only update tracked title when it actually changes
+    if (titleTxt && titleTxt !== lastObservedCanvasTitleTxt) {
+      lastObservedCanvasTitleTxt = titleTxt;
+    }
+    console.log("title_txt value:", lastObservedCanvasTitleTxt);
+
+    // Find the tooltip container that should host the TradingView chart
+    var tooltipParent = null;
+    if (canvasEl && canvasEl.closest) {
+      tooltipParent = canvasEl.closest("#tooltip3");
+    }
+    if (!tooltipParent) {
+      tooltipParent = document.getElementById("tooltip3");
+    }
+    if (!tooltipParent) {
+      console.warn("injectTradingViewChart: #tooltip3 container not found");
+      return;
+    }
+
+    // Skip updates if symbol hasn't changed; also avoid updating on empty
+    if (
+      !lastObservedCanvasTitleTxt ||
+      !String(lastObservedCanvasTitleTxt).trim()
+    ) {
+      return;
+    }
+    var newSymbol = `BSE:${String(lastObservedCanvasTitleTxt).trim()}`;
+    var existingSymbol = tooltipParent.dataset
+      ? tooltipParent.dataset.tvSymbol
+      : null;
+    if (existingSymbol && existingSymbol === newSymbol) {
+      return;
+    }
+
+    // Ensure container can size the iframe
+    if (!tooltipParent.style.position)
+      tooltipParent.style.position = "relative";
+    if (!tooltipParent.style.width) tooltipParent.style.width = "100%";
+    if (!tooltipParent.style.height) tooltipParent.style.height = "500px";
+    tooltipParent.style.backgroundColor =
+      tooltipParent.style.backgroundColor || "#0F0F0F";
+
+    // Build TradingView Advanced Chart iframe
+    var cfg = {
+      allow_symbol_change: true,
+      calendar: false,
+      details: false,
+      hide_side_toolbar: true,
+      hide_top_toolbar: false,
+      hide_legend: false,
+      hide_volume: false,
+      hotlist: false,
+      interval: "D",
+      locale: "en",
+      save_image: true,
+      style: "1",
+      symbol: newSymbol,
+      theme: "dark",
+      timezone: "Etc/UTC",
+      backgroundColor: "#0F0F0F",
+      gridColor: "rgba(242, 242, 242, 0.06)",
+      watchlist: [],
+      withdateranges: false,
+      compareSymbols: [],
+      studies: [],
+      autosize: true,
+    };
+
+    var newSrc =
+      "https://s.tradingview.com/embed-widget/advanced-chart/?locale=en#" +
+      encodeURIComponent(JSON.stringify(cfg));
+    var existingIframe = tooltipParent.querySelector("iframe");
+    if (existingIframe) {
+      if (existingIframe.src !== newSrc) {
+        existingIframe.remove();
+        iframe = document.createElement("iframe");
+        iframe.src = newSrc;
+        iframe.style.width = "60%";
+        iframe.style.height = "100%";
+        iframe.style.border = "none";
+        iframe.setAttribute("allowtransparency", "true");
+        iframe.setAttribute("scrolling", "no");
+        tooltipParent.appendChild(iframe);
+      }
+    } else {
+      // Move canvas directly under #tooltip3 and keep it hidden, then inject iframe
+      ensureCanvasInTooltipAndHidden(
+        tooltipParent,
+        actualCanvas || canvasEl || getCurrentCanvasEl()
+      );
+      var iframe = document.createElement("iframe");
+      iframe.src = newSrc;
+      iframe.style.width = "60%";
+      iframe.style.height = "100%";
+      iframe.style.border = "none";
+      iframe.setAttribute("allowtransparency", "true");
+      iframe.setAttribute("scrolling", "no");
+      // Append iframe after ensuring the canvas is kept
+      tooltipParent.appendChild(iframe);
+      tooltipParent.style.position = "absolute";
+    }
+    if (tooltipParent.dataset) {
+      tooltipParent.dataset.tvInjected = "1";
+      tooltipParent.dataset.tvSymbol = newSymbol;
+    }
+  } catch (e) {
+    try {
+      console.error("injectTradingViewChart failed", e);
+    } catch (_) {}
+  }
+}
+
+// Observe attribute changes on the chart canvas specifically
+var canvasObserver = null;
+var observedCanvasEl = null;
+var canvasPollTimer = null;
+function getCurrentCanvasEl() {
+  return document.getElementById("chartink-js-grid-0-canvas");
+}
+function readTitleTxtFrom(el) {
+  if (!el) return null;
+  var t = null;
+  try {
+    t = el.getAttribute && el.getAttribute("title_txt");
+  } catch (_) {}
+  if (!t) {
+    try {
+      if (typeof el.title_txt !== "undefined" && el.title_txt !== null) {
+        t = String(el.title_txt);
+      }
+    } catch (_) {}
+  }
+  if (!t) {
+    try {
+      t =
+        (el.getAttribute && el.getAttribute("data-symbol")) ||
+        (el.getAttribute && el.getAttribute("data-title")) ||
+        (el.getAttribute && el.getAttribute("title"));
+    } catch (_) {}
+  }
+  if (!t && el.dataset) {
+    t =
+      el.dataset.title_txt || el.dataset.titleTxt || el.dataset.symbol || null;
+  }
+  if (!t && el.parentElement) {
+    try {
+      t = el.parentElement.getAttribute
+        ? el.parentElement.getAttribute("title_txt")
+        : null;
+      if (!t && el.parentElement.dataset) {
+        t =
+          el.parentElement.dataset.title_txt ||
+          el.parentElement.dataset.titleTxt ||
+          el.parentElement.dataset.symbol ||
+          null;
+      }
+    } catch (_) {}
+  }
+  return t || null;
+}
+function startCanvasPoller() {
+  if (canvasPollTimer) return;
+  canvasPollTimer = setInterval(function () {
+    try {
+      var el = getCurrentCanvasEl();
+      var t = readTitleTxtFrom(el);
+      if (t && t !== lastObservedCanvasTitleTxt) {
+        lastObservedCanvasTitleTxt = t;
+        scheduleInjectTradingViewChart(el || observedCanvasEl);
+      }
+    } catch (e) {
+      try {
+        console.error("canvas polling error", e);
+      } catch (_) {}
+    }
+  }, 200);
+}
+function stopCanvasPoller() {
+  if (canvasPollTimer) {
+    clearInterval(canvasPollTimer);
+    canvasPollTimer = null;
+  }
+}
+function observeCanvasAttributeChanges() {
+  try {
+    if (!hoverChartBetaEnabled) return;
+    var el = getCurrentCanvasEl();
+    if (!el) return;
+    if (observedCanvasEl === el && canvasObserver) return;
+    if (canvasObserver) {
+      try {
+        canvasObserver.disconnect();
+      } catch (_) {}
+    }
+    observedCanvasEl = el;
+    canvasObserver = new MutationObserver(function (mutations) {
+      var target = (mutations[0] && mutations[0].target) || el;
+      // try to pick latest title from target or current canvas
+      var latest =
+        readTitleTxtFrom(target) || readTitleTxtFrom(getCurrentCanvasEl());
+      if (latest && latest !== lastObservedCanvasTitleTxt) {
+        lastObservedCanvasTitleTxt = latest;
+      }
+      scheduleInjectTradingViewChart(target);
+    });
+    canvasObserver.observe(el, {
+      attributes: true,
+      attributeFilter: ["title_txt"],
+    });
+    startCanvasPoller();
+    try {
+      console.log("Attached canvas observer to:", el);
+      console.log("Initial title_txt:", readTitleTxtFrom(el));
+    } catch (_) {}
+  } catch (e) {
+    try {
+      console.error("Failed to observe canvas attribute changes", e);
+    } catch (_) {}
+  }
 }
 
 // Bind pagination buttons so URL rewriting runs on every page change
@@ -139,23 +613,29 @@ function compatabilitySymbolFunc(url) {
 
 // Create a mutation observer to detect changes in the DOM
 var observer = new MutationObserver(function (mutations) {
-  mutations.forEach(function (mutation) {
-    setTimeout(function () {
-      changeURL();
-      bindChangeUrlToPagination();
-    }, 1);
-  });
+  // Throttle general handling; many mutations can fire in quick succession
+  scheduleChangeURL();
+  observeCanvasAttributeChanges();
 });
 
 var config = {
   childList: true,
   subtree: true,
+  attributes: true,
+  characterData: true,
+  attributeFilter: ["class", "href", "style", "aria-expanded", "aria-hidden"],
 };
 
 // Observe the document body for changes
 observer.observe(document.body, config);
 // Initial bind in case pagination exists on load
 bindChangeUrlToPagination();
+// Start watching the chart canvas for attribute changes
+observeCanvasAttributeChanges();
+
+// React to hover/focus driven UI updates that don't mutate DOM structure
+document.addEventListener("mouseover", scheduleFromUserInteraction);
+document.addEventListener("focusin", scheduleFromUserInteraction);
 
 const screenerButtonsClass = "flex justify-between items-enter px-4 py-4";
 const SHORTCUT_CHECKBOX_ID = "enable-shortcut-copy";
@@ -220,6 +700,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     downloadAllTickersAsCSV();
   } else if (request.message === "copyTickers") {
     copyAllTickersOnScreen();
+  } else if (request.message === "pushHoverChartBetaEnabled") {
+    hoverChartBetaEnabled = !!request.state;
+    if (hoverChartBetaEnabled) {
+      observeCanvasAttributeChanges();
+    } else {
+      disableHoverChartFeature();
+    }
   }
 });
 

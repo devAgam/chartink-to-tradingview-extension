@@ -145,3 +145,29 @@ function attachPopupButtons() {
 document.addEventListener("DOMContentLoaded", attachShortcutCheckbox);
 document.addEventListener("DOMContentLoaded", updateShortcutCheckbox);
 document.addEventListener("DOMContentLoaded", attachPopupButtons);
+
+// HOVER CHART (BETA) UI
+function attachHoverChartBeta() {
+  var el = document.getElementById("hover-chart-beta");
+  if (!el) return;
+  el.addEventListener("change", function () {
+    chrome.runtime.sendMessage({
+      message: "setHoverChartBetaEnabled",
+      state: !!this.checked,
+    });
+  });
+}
+
+function updateHoverChartBeta() {
+  var el = document.getElementById("hover-chart-beta");
+  if (!el) return;
+  chrome.runtime.sendMessage(
+    { message: "getHoverChartBetaEnabled" },
+    function (response) {
+      el.defaultChecked = !!(response && response.hoverChartBetaEnabled);
+    }
+  );
+}
+
+document.addEventListener("DOMContentLoaded", attachHoverChartBeta);
+document.addEventListener("DOMContentLoaded", updateHoverChartBeta);

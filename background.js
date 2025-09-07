@@ -73,6 +73,19 @@ function setKiteChartType(type) {
   chrome.storage.local.set({ kiteChartType: type });
 }
 
+// Hover Chart (Beta) state helpers
+function getHoverChartBetaEnabled() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get("hoverChartBetaEnabled", (result) => {
+      resolve(!!result.hoverChartBetaEnabled);
+    });
+  });
+}
+
+function setHoverChartBetaEnabled(state) {
+  chrome.storage.local.set({ hoverChartBetaEnabled: !!state });
+}
+
 // Listener to listen for messages from popup.js
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   handleRuntimeMessage(request, sendResponse);
@@ -138,6 +151,21 @@ async function handleRuntimeMessage(request, sendResponse) {
         );
       });
       break;
+    case "getHoverChartBetaEnabled":
+      const hoverChartBetaEnabled = await getHoverChartBetaEnabled();
+      sendResponse({ hoverChartBetaEnabled });
+      break;
+    case "setHoverChartBetaEnabled":
+      setHoverChartBetaEnabled(!!request.state);
+      chrome.tabs.query({ url: "*://*.chartink.com/*" }, (tabs) => {
+        tabs.forEach((t) =>
+          chrome.tabs.sendMessage(t.id, {
+            message: "pushHoverChartBetaEnabled",
+            state: !!request.state,
+          })
+        );
+      });
+      break;
     default:
       break;
   }
@@ -179,6 +207,11 @@ chrome.runtime.onInstalled.addListener(() => {
   chrome.storage.local.get("shortcutEnabled", (r) => {
     if (typeof r.shortcutEnabled === "undefined") {
       chrome.storage.local.set({ shortcutEnabled: false });
+    }
+  });
+  chrome.storage.local.get("hoverChartBetaEnabled", (r) => {
+    if (typeof r.hoverChartBetaEnabled === "undefined") {
+      chrome.storage.local.set({ hoverChartBetaEnabled: false });
     }
   });
 });
