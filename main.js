@@ -23,7 +23,7 @@ function changeURL() {
       if (!response.chartRedirectState) {
         return;
       }
-
+      console.log("triggering changeURL");
       // Find all links with href starting with "/stocks"
       var links = document.querySelectorAll('a[href^="/stocks"]');
       for (var i = 0; i < links.length; i++) {
@@ -106,6 +106,25 @@ function changeURL() {
   );
 }
 
+// Schedule multiple passes of changeURL to cover async table redraws after pagination
+function scheduleChangeURL() {
+  setTimeout(changeURL, 1);
+  setTimeout(changeURL, 150);
+  setTimeout(changeURL, 400);
+}
+
+// Bind pagination buttons so URL rewriting runs on every page change
+function bindChangeUrlToPagination() {
+  const buttons = document.querySelectorAll("button.px-2\\.5");
+  buttons.forEach((btn) => {
+    if (btn.dataset.changeurlBound === "1") return;
+    btn.dataset.changeurlBound = "1";
+    btn.addEventListener("click", () => {
+      scheduleChangeURL();
+    });
+  });
+}
+
 /**
  * Extracts the symbol from the URL based on the URL format.
  * @param {string} url - The URL of the link.
@@ -123,7 +142,8 @@ var observer = new MutationObserver(function (mutations) {
   mutations.forEach(function (mutation) {
     setTimeout(function () {
       changeURL();
-    }, 100);
+      bindChangeUrlToPagination();
+    }, 1);
   });
 });
 
@@ -134,6 +154,8 @@ var config = {
 
 // Observe the document body for changes
 observer.observe(document.body, config);
+// Initial bind in case pagination exists on load
+bindChangeUrlToPagination();
 
 const screenerButtonsClass = "flex justify-between items-enter px-4 py-4";
 const SHORTCUT_CHECKBOX_ID = "enable-shortcut-copy";
@@ -206,19 +228,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
  * @returns {number} - The length of the pagination.
  */
 function getPaginationLength() {
-  // make sure we are on the first page
-  // find a button with text "1"
-  const firstPageButton = Array.from(
-    document.querySelectorAll("button.px-2\\.5")
-  ).find((button) => button.textContent.trim() === "1");
-  if (firstPageButton) firstPageButton.click();
+  const allButtons = Array.from(document.querySelectorAll("button.px-2\\.5"));
+  if (allButtons.length === 0) return 1; // no pagination UI -> single page
 
-  const nextButton = document.querySelector("button.px-2\\.5");
-  if (!nextButton) return 0;
-
-  // Find the specific Next button by checking its text content
-  const allButtons = document.querySelectorAll("button.px-2\\.5");
-  let nextPageButton;
+  let nextPageButton = null;
   for (const button of allButtons) {
     if (button.textContent.trim() === "Next") {
       nextPageButton = button;
@@ -226,10 +239,11 @@ function getPaginationLength() {
     }
   }
 
-  if (!nextPageButton) return 0;
+  if (!nextPageButton) return 1; // no Next button -> single page
 
   const previousElement = nextPageButton.previousElementSibling;
-  return parseInt(previousElement.textContent);
+  const total = previousElement ? parseInt(previousElement.textContent) : 1;
+  return Number.isFinite(total) && total > 0 ? total : 1;
 }
 
 // Clicks the next page button
@@ -249,6 +263,18 @@ function nextPage() {
 
   if (!nextPageButton) return 0;
   nextPageButton.click();
+}
+
+// Ensure we are on the first page (click the "1" button if present)
+async function goToFirstPage() {
+  const allButtons = Array.from(document.querySelectorAll("button.px-2\\.5"));
+  if (allButtons.length === 0) return; // no pagination UI
+  const firstPageButton = allButtons.find(
+    (button) => button.textContent.trim() === "1"
+  );
+  if (!firstPageButton) return;
+  firstPageButton.click();
+  await delay(200);
 }
 
 /**
@@ -283,13 +309,18 @@ async function copyAllTickersOnScreen() {
         let allTickersArray = [];
         let allTags = [];
         const numberOfPages = getPaginationLength();
+        await goToFirstPage();
 
         // Iterate through each page
         for (let i = 0; i < numberOfPages; i++) {
           if (i > 0) {
             await delay(200);
           }
-
+          console.log(
+            document.querySelectorAll(
+              'a[href^="https://in.tradingview.com/chart/?symbol=NSE:"]'
+            )
+          );
           // Capture immutable snapshots (text + href) for this page
           allTags.push(
             Array.from(
@@ -338,6 +369,7 @@ async function copyAllTickersOnScreen() {
       let allTickersArray = [];
       let allTags = [];
       const numberOfPages = getPaginationLength();
+      await goToFirstPage();
 
       // Iterate through each page
       for (let i = 0; i < numberOfPages; i++) {
