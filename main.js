@@ -27,12 +27,22 @@ function changeURL() {
       // Find all links with href starting with "/stocks"
       var links = document.querySelectorAll('a[href^="/stocks"]');
       for (var i = 0; i < links.length; i++) {
+        if (
+          links[i].innerText === "Charts" ||
+          links[i].innerText === "Candlestick"
+        )
+          continue;
         // Modify the href to redirect to TradingView with the appropriate symbol
         links[
           i
         ].href = `https://in.tradingview.com/chart/?symbol=NSE:${compatabilitySymbolFunc(
           links[i].href
         )}`;
+        console.log(
+          compatabilitySymbolFunc(links[i].href),
+          links[i].href,
+          links[i].innerText
+        );
       }
     }
   );
@@ -130,7 +140,7 @@ var config = {
 // Observe the document body for changes
 observer.observe(document.body, config);
 
-const screenerButtonsClass = "btn btn-default btn-primary";
+const screenerButtonsClass = "flex justify-between items-enter px-4 py-4";
 
 /**
  * Adds a copy button to the TradingView screener buttons.
@@ -147,7 +157,7 @@ const addCopyToTradingViewButton = (
 ) => {
   const screenerButtons = document.getElementsByClassName(screenerButtonsClass);
   if (screenerButtons.length === 0) return;
-  const screenerButtonsParent = screenerButtons[0].parentNode;
+  const screenerButtonsParent = screenerButtons[0];
   const screenerButton = document.createElement("button");
   screenerButton.innerHTML = buttonText;
   screenerButton.className = buttonClass;
@@ -159,7 +169,7 @@ const addCopyToTradingViewButton = (
 // Add a copy button to the TradingView screener buttons
 addCopyToTradingViewButton(
   "Copy to TradingView",
-  "btn btn-default btn-primary",
+  "secondary-button w-fit px-2 lg:px-4 py-1.5 opacity-100",
   "add-to-watchlist",
   copyAllTickersOnScreen
 );
@@ -169,11 +179,24 @@ addCopyToTradingViewButton(
  * @returns {number} - The length of the pagination.
  */
 function getPaginationLength() {
-  const paginationList = document
-    .getElementsByClassName("pagination")[0]
-    .getElementsByTagName("li");
+  const nextButton = document.querySelector("button.px-2\\.5");
+  if (!nextButton) return 0;
 
-  return paginationList[paginationList.length - 2].innerText;
+  // Find the specific Next button by checking its text content
+  const allButtons = document.querySelectorAll("button.px-2\\.5");
+  let nextPageButton;
+  for (const button of allButtons) {
+    if (button.textContent.trim() === "Next") {
+      nextPageButton = button;
+      break;
+    }
+  }
+
+  if (!nextPageButton) return 0;
+
+  const previousElement = nextPageButton.previousElementSibling;
+  console.log(previousElement.textContent);
+  return parseInt(previousElement.textContent);
 }
 
 // Clicks the next page button
@@ -234,18 +257,20 @@ async function copyAllTickersOnScreen() {
             await delay(200);
           }
 
-          // Find all tags with href starting with "https://in.tradingview.com/chart/?symbol=NSE:"
+          // Capture immutable snapshots (text + href) for this page
           allTags.push(
-            document.querySelectorAll(
-              'a[href^="https://in.tradingview.com/chart/?symbol=NSE:"]'
-            )
+            Array.from(
+              document.querySelectorAll(
+                'a[href^="https://in.tradingview.com/chart/?symbol=NSE:"]'
+              )
+            ).map((a) => ({ text: (a.textContent || "").trim(), href: a.href }))
           );
 
           nextPage();
         }
 
-        // Flatten the array of tags
-        const allTickers = allTags.map((tag) => Array.from(tag)).flat();
+        // Flatten the array of page snapshots
+        const allTickers = allTags.flat();
 
         // Extract the symbols from the URLs and add them to the tickers array
         allTickers.forEach((ticker) => {
@@ -288,13 +313,18 @@ async function copyAllTickersOnScreen() {
           await delay(200);
         }
 
-        allTags.push(document.querySelectorAll('a[href^="/stocks-new"]'));
+        // Capture immutable snapshots (text + href) for this page
+        allTags.push(
+          Array.from(document.querySelectorAll('a[href^="/stocks-new"]')).map(
+            (a) => ({ text: (a.textContent || "").trim(), href: a.href })
+          )
+        );
 
         nextPage();
       }
       console.log(allTags);
-      // Flatten the array of tags
-      const allTickers = allTags.map((tag) => Array.from(tag)).flat();
+      // Flatten the array of page snapshots
+      const allTickers = allTags.flat();
       // Extract the symbols from the URLs and add them to the tickers array
       allTickers.forEach((ticker) => {
         allTickersArray.push(
