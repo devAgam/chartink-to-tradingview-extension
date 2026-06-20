@@ -86,6 +86,23 @@ function setHoverChartBetaEnabled(state) {
   chrome.storage.local.set({ hoverChartBetaEnabled: !!state });
 }
 
+// Reload all open Chartink tabs so a changed setting takes effect immediately.
+// Debounced so toggling several settings in quick succession triggers one reload.
+let reloadTabsDebounceTimer = null;
+function reloadChartinkTabs() {
+  if (reloadTabsDebounceTimer) clearTimeout(reloadTabsDebounceTimer);
+  reloadTabsDebounceTimer = setTimeout(() => {
+    reloadTabsDebounceTimer = null;
+    chrome.tabs.query({ url: "*://*.chartink.com/*" }, (tabs) => {
+      tabs.forEach((t) => {
+        try {
+          chrome.tabs.reload(t.id);
+        } catch (_) {}
+      });
+    });
+  }, 350);
+}
+
 // Listener to listen for messages from popup.js
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   handleRuntimeMessage(request, sendResponse);
@@ -101,6 +118,7 @@ async function handleRuntimeMessage(request, sendResponse) {
       break;
     case "setChartRedirectState":
       setChartRedirectState(request.state);
+      reloadChartinkTabs();
       break;
     case "redirectToKite":
       const symbol = extractSymbolFromTradingViewURL(request.href);
@@ -113,6 +131,7 @@ async function handleRuntimeMessage(request, sendResponse) {
       break;
     case "setKiteEnabled":
       setKiteEnabled(request.state);
+      reloadChartinkTabs();
       break;
     case "getKiteChartType":
       const kiteChartType = await getKiteChartType();
@@ -120,6 +139,7 @@ async function handleRuntimeMessage(request, sendResponse) {
       break;
     case "setKiteChartType":
       setKiteChartType(request.type);
+      reloadChartinkTabs();
       break;
     case "getShortcutEnabled":
       chrome.storage.local.get("shortcutEnabled", (result) => {
@@ -128,14 +148,7 @@ async function handleRuntimeMessage(request, sendResponse) {
       break;
     case "setShortcutEnabled":
       chrome.storage.local.set({ shortcutEnabled: !!request.state });
-      chrome.tabs.query({ url: "*://*.chartink.com/*" }, (tabs) => {
-        tabs.forEach((t) =>
-          chrome.tabs.sendMessage(t.id, {
-            message: "pushShortcutEnabled",
-            state: !!request.state,
-          })
-        );
-      });
+      reloadChartinkTabs();
       break;
     case "triggerDownloadCSV":
       chrome.tabs.query({ url: "*://*.chartink.com/*" }, (tabs) => {
@@ -157,14 +170,7 @@ async function handleRuntimeMessage(request, sendResponse) {
       break;
     case "setHoverChartBetaEnabled":
       setHoverChartBetaEnabled(!!request.state);
-      chrome.tabs.query({ url: "*://*.chartink.com/*" }, (tabs) => {
-        tabs.forEach((t) =>
-          chrome.tabs.sendMessage(t.id, {
-            message: "pushHoverChartBetaEnabled",
-            state: !!request.state,
-          })
-        );
-      });
+      reloadChartinkTabs();
       break;
     default:
       break;

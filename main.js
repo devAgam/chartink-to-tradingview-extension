@@ -12,12 +12,98 @@ const dateHeader = `### ${new Date().toLocaleDateString("en-GB", {
 // Feature flag: enable/disable element-to-symbol logging
 const ENABLE_TICKER_SYMBOL_LOGS = false;
 
+// Temporary: verbose pagination diagnostics in the console (prefix "[CTV]").
+const ENABLE_PAGINATION_LOGS = true;
+function ctvLog() {
+  if (!ENABLE_PAGINATION_LOGS) return;
+  try {
+    console.log.apply(console, ["[CTV]"].concat([].slice.call(arguments)));
+  } catch (_) {}
+}
+
+// Feature flag: the hardcoded AAPL "advanced chart" widget pinned to the bottom
+// of the page served no purpose for NSE users and showed up on the dashboard.
+// Kept behind a flag (off) instead of deleting, in case it's needed again.
+const ENABLE_STATIC_TV_WIDGET = false;
+
+// Official TradingView app icon (black rounded square + white mark).
+const TV_OFFICIAL_ICON_SVG = `<svg viewBox="0 0 1900 1900" xmlns="http://www.w3.org/2000/svg" style="width:17px;height:17px;flex:0 0 auto;display:inline-block;vertical-align:middle;border-radius:4px" aria-hidden="true"><rect width="1900" height="1900" rx="430" fill="#000000"></rect><polygon points="210,610 850,610 850,1490 545,1490 545,930 210,930" fill="#ffffff"></polygon><circle cx="1045" cy="810" r="168" fill="#ffffff"></circle><polygon points="1370,610 1780,610 1585,1490 1175,1490" fill="#ffffff"></polygon></svg>`;
+
+// Stripe-style button: whitish-grey surface, thin outline, layered shadow.
+const STRIPE_SHADOW =
+  "0 1px 1px rgba(0,0,0,0.04), 0 2px 5px rgba(60,66,87,0.10), 0 0 0 1px rgba(60,66,87,0.06)";
+const STRIPE_SHADOW_HOVER =
+  "0 2px 5px rgba(0,0,0,0.06), 0 6px 14px rgba(60,66,87,0.18), 0 0 0 1px rgba(60,66,87,0.08)";
+const STRIPE_BTN_CSS =
+  "display:inline-flex;align-items:center;gap:7px;background:#f7f8fa;color:#1a1f36;border:1px solid rgba(0,0,0,0.06);border-radius:7px;padding:6px 12px;font-size:13px;font-weight:600;line-height:1.2;cursor:pointer;box-shadow:" +
+  STRIPE_SHADOW +
+  ";transition:box-shadow .15s ease, transform .12s ease;-webkit-font-smoothing:antialiased;";
+// Compact variant for tight spots like dashboard/Atlas widget headers.
+const STRIPE_BTN_CSS_COMPACT =
+  "display:inline-flex;align-items:center;gap:5px;background:#f7f8fa;color:#1a1f36;border:1px solid rgba(0,0,0,0.06);border-radius:6px;padding:3px 8px;font-weight:600;line-height:1.2;cursor:pointer;flex:0 0 auto;box-shadow:" +
+  STRIPE_SHADOW +
+  ";transition:box-shadow .15s ease, transform .12s ease;-webkit-font-smoothing:antialiased;";
+
+/**
+ * Builds a Stripe-styled "Copy to TradingView" button: official TradingView
+ * icon + stacked label with a tiny "by devAgam" credit inside. `compact`
+ * shrinks it for widget headers. Wires the shared hover/press feedback.
+ */
+function buildStripeCopyButton(opts) {
+  opts = opts || {};
+  const compact = !!opts.compact;
+  const labelSize = compact ? "11px" : "13px";
+  const subSize = compact ? "7px" : "8px";
+
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.title = opts.title || "Copy to TradingView";
+  btn.style.cssText = compact ? STRIPE_BTN_CSS_COMPACT : STRIPE_BTN_CSS;
+  btn.innerHTML =
+    TV_OFFICIAL_ICON_SVG +
+    '<span style="display:inline-flex;flex-direction:column;align-items:flex-start;line-height:1;">' +
+    '<span style="font-size:' +
+    labelSize +
+    '">' +
+    (opts.label || "Copy to TradingView") +
+    "</span>" +
+    '<span style="font-size:' +
+    subSize +
+    ';font-weight:500;color:#8792a2;letter-spacing:.2px;margin-top:2px;">by devAgam</span>' +
+    "</span>";
+
+  btn.addEventListener("mouseenter", function () {
+    btn.style.boxShadow = STRIPE_SHADOW_HOVER;
+    btn.style.transform = "translateY(-1px)";
+  });
+  btn.addEventListener("mouseleave", function () {
+    btn.style.boxShadow = STRIPE_SHADOW;
+    btn.style.transform = "none";
+  });
+  btn.addEventListener("mousedown", function () {
+    btn.style.transform = "translateY(0)";
+    btn.style.boxShadow = STRIPE_SHADOW;
+  });
+  return btn;
+}
+
+// Copy plain text to the clipboard (no date header), used by the per-widget button.
+function copyTextToClipboard(text) {
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand("copy");
+  document.body.removeChild(ta);
+}
+
 /**
  * Injects a TradingView mini symbol overview widget at the bottom of the page.
  * Safe to call multiple times; it won't inject duplicates.
  */
 function injectTradingViewWidget() {
   try {
+    if (!ENABLE_STATIC_TV_WIDGET) return;
     if (document.querySelector(".tradingview-widget-container")) return;
 
     const container = document.createElement("div");
@@ -199,6 +285,7 @@ function scheduleChangeURL() {
   const run = function () {
     changeURL();
     bindChangeUrlToPagination();
+    ensureCopyButtons();
   };
   setTimeout(run, 1);
   setTimeout(run, 150);
@@ -344,6 +431,70 @@ function ensureCanvasInTooltipAndHidden(tooltipParent, canvasEl) {
     } catch (_) {}
   }
 }
+// Style a hover-chart iframe so it fills the overlay (no blank band) and fades in.
+function styleHoverIframe(iframe) {
+  iframe.style.width = "100%";
+  iframe.style.height = "100%";
+  iframe.style.border = "none";
+  iframe.style.display = "block";
+  iframe.style.borderRadius = "10px";
+  iframe.style.opacity = "0";
+  iframe.style.transition = "opacity 180ms ease";
+  iframe.setAttribute("allowtransparency", "true");
+  iframe.setAttribute("scrolling", "no");
+  iframe.addEventListener("load", function () {
+    iframe.style.opacity = "1";
+  });
+}
+
+// Clamp the floating overlay so it never gets clipped off-screen. Caps its size
+// to the viewport and nudges it back in if any edge spills out.
+function clampTooltipToViewport(el) {
+  try {
+    if (!el || el.style.display === "none") return;
+    const margin = 8;
+    const vw = document.documentElement.clientWidth;
+    const vh = document.documentElement.clientHeight;
+    const maxW = vw - margin * 2;
+    const maxH = vh - margin * 2;
+
+    let rect = el.getBoundingClientRect();
+    if (rect.width > maxW) el.style.width = maxW + "px";
+    if (rect.height > maxH) el.style.height = maxH + "px";
+
+    rect = el.getBoundingClientRect();
+    const curLeft = parseFloat(el.style.left) || 0;
+    const curTop = parseFloat(el.style.top) || 0;
+    let dx = 0;
+    let dy = 0;
+    if (rect.left < margin) dx = margin - rect.left;
+    else if (rect.right > vw - margin) dx = vw - margin - rect.right;
+    if (rect.top < margin) dy = margin - rect.top;
+    else if (rect.bottom > vh - margin) dy = vh - margin - rect.bottom;
+    if (dx) el.style.left = curLeft + dx + "px";
+    if (dy) el.style.top = curTop + dy + "px";
+  } catch (_) {}
+}
+
+// Stop wheel/scroll over the overlay chrome from scrolling the underlying page.
+// (The cross-origin TradingView iframe already captures its own wheel for zoom.)
+function attachOverlayWheelGuard() {
+  if (window.__ctvWheelGuardAttached) return;
+  window.__ctvWheelGuardAttached = true;
+  document.addEventListener(
+    "wheel",
+    function (e) {
+      const tip = document.getElementById("tooltip3");
+      if (!tip || tip.style.display === "none") return;
+      if (tip.contains(e.target)) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    },
+    { passive: false, capture: true }
+  );
+}
+
 function injectTradingViewChart(canvasEl) {
   try {
     if (!hoverChartBetaEnabled) return;
@@ -407,6 +558,10 @@ function injectTradingViewChart(canvasEl) {
     if (!tooltipParent.style.height) tooltipParent.style.height = "500px";
     tooltipParent.style.backgroundColor =
       tooltipParent.style.backgroundColor || "#0F0F0F";
+    // Clip the iframe to the rounded container and keep edges clean
+    tooltipParent.style.overflow = "hidden";
+    if (!tooltipParent.style.borderRadius)
+      tooltipParent.style.borderRadius = "10px";
 
     // Build TradingView Advanced Chart iframe
     var cfg = {
@@ -440,15 +595,10 @@ function injectTradingViewChart(canvasEl) {
     var existingIframe = tooltipParent.querySelector("iframe");
     if (existingIframe) {
       if (existingIframe.src !== newSrc) {
-        existingIframe.remove();
-        iframe = document.createElement("iframe");
-        iframe.src = newSrc;
-        iframe.style.width = "60%";
-        iframe.style.height = "100%";
-        iframe.style.border = "none";
-        iframe.setAttribute("allowtransparency", "true");
-        iframe.setAttribute("scrolling", "no");
-        tooltipParent.appendChild(iframe);
+        var newIframe = document.createElement("iframe");
+        newIframe.src = newSrc;
+        styleHoverIframe(newIframe);
+        existingIframe.replaceWith(newIframe);
       }
     } else {
       // Move canvas directly under #tooltip3 and keep it hidden, then inject iframe
@@ -458,11 +608,7 @@ function injectTradingViewChart(canvasEl) {
       );
       var iframe = document.createElement("iframe");
       iframe.src = newSrc;
-      iframe.style.width = "60%";
-      iframe.style.height = "100%";
-      iframe.style.border = "none";
-      iframe.setAttribute("allowtransparency", "true");
-      iframe.setAttribute("scrolling", "no");
+      styleHoverIframe(iframe);
       // Append iframe after ensuring the canvas is kept
       tooltipParent.appendChild(iframe);
       tooltipParent.style.position = "absolute";
@@ -471,6 +617,9 @@ function injectTradingViewChart(canvasEl) {
       tooltipParent.dataset.tvInjected = "1";
       tooltipParent.dataset.tvSymbol = newSymbol;
     }
+    // Keep the overlay inside the viewport and stop wheel-zoom from scrolling the page
+    clampTooltipToViewport(tooltipParent);
+    attachOverlayWheelGuard();
   } catch (e) {
     try {
       console.error("injectTradingViewChart failed", e);
@@ -536,6 +685,8 @@ function startCanvasPoller() {
         lastObservedCanvasTitleTxt = t;
         scheduleInjectTradingViewChart(el || observedCanvasEl);
       }
+      // Re-clamp in case Chartink repositions/resizes the overlay on hover
+      clampTooltipToViewport(document.getElementById("tooltip3"));
     } catch (e) {
       try {
         console.error("canvas polling error", e);
@@ -637,42 +788,128 @@ observeCanvasAttributeChanges();
 document.addEventListener("mouseover", scheduleFromUserInteraction);
 document.addEventListener("focusin", scheduleFromUserInteraction);
 
-const screenerButtonsClass = "flex justify-between items-enter px-4 py-4";
-const SHORTCUT_CHECKBOX_ID = "enable-shortcut-copy";
-const STORAGE_KEY_ENABLE_SHORTCUT = "enableShortcutCopy";
+// Keep the hover overlay inside the viewport when the window is resized
+window.addEventListener("resize", function () {
+  clampTooltipToViewport(document.getElementById("tooltip3"));
+});
+
+const GLOBAL_COPY_BTN_ID = "add-to-watchlist";
 let enableShortcutCopyState = false;
 
-/**
- * Adds a copy button to the TradingView screener buttons.
- * @param {string} buttonText - The text to display on the button.
- * @param {string} buttonClass - The CSS class of the button.
- * @param {string} buttonId - The ID of the button.
- * @param {function} buttonFunction - The function to execute when the button is clicked.
- */
-const addCopyToTradingViewButton = (
-  buttonText,
-  buttonClass,
-  buttonId,
-  buttonFunction
-) => {
-  const screenerButtons = document.getElementsByClassName(screenerButtonsClass);
-  if (screenerButtons.length === 0) return;
-  const screenerButtonsParent = screenerButtons[0];
-  const screenerButton = document.createElement("button");
-  screenerButton.innerHTML = buttonText;
-  screenerButton.className = buttonClass;
-  screenerButton.id = buttonId;
-  screenerButton.onclick = buttonFunction;
-  screenerButtonsParent.appendChild(screenerButton);
-};
+// True only on the screener results view (where the Copy/CSV/Excel toolbar and
+// pager exist). The copy flow + shortcut are screener-only.
+function isScreenerResultsPresent() {
+  if (document.querySelector(".scan-results-toolbar-button")) return true;
+  const pager = getScreenerPagerButtons();
+  return !!(pager.next || pager.prev);
+}
 
-// Add a copy button to the TradingView screener buttons
-addCopyToTradingViewButton(
-  "Copy to TradingView",
-  "secondary-button w-fit px-2 lg:px-4 py-1.5 opacity-100",
-  "add-to-watchlist",
-  copyAllTickersOnScreen
-);
+// Platform-aware label for the copy shortcut, e.g. "⌘+Shift+C" / "Ctrl+Shift+C".
+function getCopyShortcutLabel() {
+  const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+  return (isMac ? "Cmd" : "Ctrl") + "+Shift+C";
+}
+
+/**
+ * Adds the "Copy to TradingView" button into the screener results export
+ * toolbar (the row that holds Copy / CSV / Excel). Styled like a Stripe button
+ * (whitish-grey, outline, layered shadow) with the official TradingView icon
+ * and a tiny "by devAgam" caption underneath.
+ * Idempotent and safe to call repeatedly as Chartink re-renders.
+ */
+function addGlobalCopyToTradingViewButton() {
+  // The export toolbar group containing the Copy / CSV / Excel buttons.
+  const firstToolbarBtn = document.querySelector(".scan-results-toolbar-button");
+  if (!firstToolbarBtn || !firstToolbarBtn.parentElement) return;
+  if (document.getElementById(GLOBAL_COPY_BTN_ID)) return;
+
+  const group = firstToolbarBtn.parentElement;
+
+  const btn = buildStripeCopyButton({
+    title:
+      "Copy all tickers across every page to TradingView\nShortcut: " +
+      getCopyShortcutLabel(),
+  });
+  btn.id = GLOBAL_COPY_BTN_ID;
+  btn.addEventListener("click", copyAllTickersOnScreen);
+  group.appendChild(btn);
+}
+
+/**
+ * Adds a per-widget "Copy to TradingView" button to every dashboard widget
+ * header. Copies just that widget's tickers (NSE:SYMBOL, ...) to the clipboard.
+ */
+const WIDGET_COPY_CLASS = "ctv-widget-copy";
+function addWidgetCopyButtons() {
+  const widgets = document.querySelectorAll(".vue-grid-item");
+  widgets.forEach((widget) => {
+    if (widget.querySelector("." + WIDGET_COPY_CLASS)) return;
+
+    // Only stock-list widgets get a copy button — skip chart/gauge/etc. widgets
+    // that have no ticker rows. (Widgets load async; once rows render, a later
+    // ensureCopyButtons pass will add the button.)
+    const hasTickers =
+      widget.querySelector("a[data-symbol]") ||
+      widget.querySelector('a[href*="symbol=NSE:"]');
+    if (!hasTickers) return;
+
+    // The widget title lives in a span.truncate inside the header row.
+    const titleSpan = widget.querySelector("span.truncate");
+    if (!titleSpan || !titleSpan.parentElement) return;
+
+    const btn = buildStripeCopyButton({
+      compact: true,
+      title: "Copy this widget's tickers to TradingView",
+    });
+    btn.className = WIDGET_COPY_CLASS;
+    btn.style.cssText += "margin-left:6px;";
+    btn.addEventListener("click", function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      copyWidgetTickers(widget, btn);
+    });
+    titleSpan.parentElement.appendChild(btn);
+  });
+}
+
+// Copy all NSE tickers contained in a single dashboard widget.
+function copyWidgetTickers(widget, btn) {
+  // Prefer the clean data-symbol attribute; fall back to rewritten NSE links.
+  let symbols = Array.from(widget.querySelectorAll("a[data-symbol]"))
+    .map((a) => a.getAttribute("data-symbol"))
+    .filter(Boolean);
+  if (!symbols.length) {
+    symbols = Array.from(widget.querySelectorAll('a[href*="symbol=NSE:"]'))
+      .map((a) => extracrtSymbolFromURL(a.href))
+      .filter(Boolean);
+  }
+
+  symbols = symbols.map(replaceSpecialCharsWithUnderscore);
+  symbols = removeDuplicateTickers(addColonNSEtoTickers(symbols));
+  if (!symbols.length) return;
+
+  copyTextToClipboard(symbols.join(", "));
+
+  // Brief confirmation on the button's label, keeping the Stripe look intact.
+  const labelSpan = btn.querySelector("span > span");
+  if (labelSpan) {
+    const original = labelSpan.textContent;
+    labelSpan.textContent = "Copied ✓";
+    labelSpan.style.color = "#16a34a";
+    setTimeout(function () {
+      labelSpan.textContent = original;
+      labelSpan.style.color = "";
+    }, 1500);
+  }
+}
+
+// Inject both the global and per-widget copy buttons, and keep them present as
+// Chartink re-renders the SPA.
+function ensureCopyButtons() {
+  addGlobalCopyToTradingViewButton();
+  addWidgetCopyButtons();
+}
+ensureCopyButtons();
 
 // Initialize shortcut state in content script and keybinding (UI lives in popup)
 chrome.runtime.sendMessage(
@@ -686,7 +923,11 @@ window.addEventListener("keydown", (e) => {
   if (!enableShortcutCopyState) return;
   const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
   const mod = isMac ? e.metaKey : e.ctrlKey;
-  if (mod && e.shiftKey && (e.key === "C" || e.key === "c")) {
+  // Match by physical key (e.code) so it's layout/Shift independent.
+  const isC = e.code === "KeyC" || e.key === "C" || e.key === "c";
+  if (mod && e.shiftKey && isC) {
+    // Screener-only: ignore on dashboard/Atlas or anywhere without results.
+    if (!isScreenerResultsPresent()) return;
     e.preventDefault();
     copyAllTickersOnScreen();
   }
@@ -711,68 +952,128 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 /**
- * Gets the length of the pagination.
- * @returns {number} - The length of the pagination.
+ * Finds the screener results pager buttons ("<< Prev" / "Next >>"). The new
+ * Chartink UI has no page-count text — Next gets the `disabled` attribute on
+ * the last page, Prev on the first page.
+ * @returns {{prev: HTMLButtonElement|null, next: HTMLButtonElement|null}}
  */
-function getPaginationLength() {
-  const allButtons = Array.from(document.querySelectorAll("button.px-2\\.5"));
-  if (allButtons.length === 0) return 1; // no pagination UI -> single page
-
-  let nextPageButton = null;
-  for (const button of allButtons) {
-    if (button.textContent.trim() === "Next") {
-      nextPageButton = button;
-      break;
-    }
+function getScreenerPagerButtons() {
+  let prev = null;
+  let next = null;
+  const buttons = document.querySelectorAll("button");
+  for (const b of buttons) {
+    const t = (b.textContent || "").replace(/\s+/g, " ").trim().toLowerCase();
+    if (!t || t.length > 14) continue; // skip long labels (e.g. dropdown options)
+    const looksPrev =
+      t === "<< prev" || (t.includes("prev") && (t.includes("<") || t === "prev"));
+    const looksNext =
+      t === "next >>" || (t.includes("next") && (t.includes(">") || t === "next"));
+    if (looksNext && !next) next = b;
+    else if (looksPrev && !prev) prev = b;
+    if (prev && next) break;
   }
-
-  if (!nextPageButton) return 1; // no Next button -> single page
-
-  const previousElement = nextPageButton.previousElementSibling;
-  const total = previousElement ? parseInt(previousElement.textContent) : 1;
-  return Number.isFinite(total) && total > 0 ? total : 1;
+  return { prev, next };
 }
 
-// Clicks the next page button
-function nextPage() {
-  const nextButton = document.querySelector("button.px-2\\.5");
-  if (!nextButton) return 0;
-
-  // Find the specific Next button by checking its text content
-  const allButtons = document.querySelectorAll("button.px-2\\.5");
-  let nextPageButton;
-  for (const button of allButtons) {
-    if (button.textContent.trim() === "Next") {
-      nextPageButton = button;
-      break;
-    }
-  }
-
-  if (!nextPageButton) return 0;
-  nextPageButton.click();
+// True when a pager button can't be advanced (disabled attr/prop or styling).
+function isPagerButtonDisabled(btn) {
+  if (!btn) return true;
+  if (btn.disabled) return true;
+  if (btn.getAttribute("disabled") !== null) return true;
+  if (btn.getAttribute("aria-disabled") === "true") return true;
+  const cls = btn.className || "";
+  if (/(^|\s)(disabled|cursor-not-allowed)(\s|$)/.test(cls)) return true;
+  return false;
 }
 
-// Ensure we are on the first page (click the "1" button if present)
-async function goToFirstPage() {
-  const allButtons = Array.from(document.querySelectorAll("button.px-2\\.5"));
-  if (allButtons.length === 0) return; // no pagination UI
-  const firstPageButton = allButtons.find(
-    (button) => button.textContent.trim() === "1"
-  );
-  if (!firstPageButton) return;
-  firstPageButton.click();
-  await delay(200);
+// A signature of the rows currently rendered, used to detect when a page
+// actually changes after clicking Prev/Next.
+function screenerPageSignature() {
+  return Array.from(document.querySelectorAll("a[data-symbol]"))
+    .map((a) => a.getAttribute("data-symbol"))
+    .join("|");
+}
+
+// Wait until the rendered rows differ from `prevSig` (page advanced), or bail
+// out after `timeout` ms. Returns true if the page changed.
+async function waitForScreenerPageChange(prevSig, timeout) {
+  const start = Date.now();
+  const limit = typeof timeout === "number" ? timeout : 2500;
+  while (Date.now() - start < limit) {
+    await delay(80);
+    if (screenerPageSignature() !== prevSig) {
+      await delay(60); // let the row anchors settle
+      return true;
+    }
+  }
+  return false;
 }
 
 /**
- * Gets the number of stocks displayed on the screen.
- * @returns {number} - The number of stocks.
+ * Walks every page of the screener results table and collects all tickers.
+ * Uses Chartink's own `data-symbol` attribute (present regardless of the
+ * redirect setting), so it works whether or not links are rewritten.
+ * @returns {Promise<string[]>} - Deduped, NSE-prefixed tickers (e.g. "NSE:TCS").
  */
-function getNumberOfStocks() {
-  const el = document.getElementsByClassName("dataTables_info")[0];
-  const innerText = el.innerText;
-  const numberOfStocks = innerText.match(/\d+/)[0];
-  return numberOfStocks;
+async function collectScreenerTickersAcrossPages() {
+  const seen = new Set();
+  const symbols = [];
+
+  const scrapeCurrentPage = () => {
+    document.querySelectorAll("a[data-symbol]").forEach((a) => {
+      const raw = a.getAttribute("data-symbol");
+      if (!raw) return;
+      const key = replaceSpecialCharsWithUnderscore(raw);
+      if (!seen.has(key)) {
+        seen.add(key);
+        symbols.push(key);
+      }
+    });
+  };
+
+  const pager0 = getScreenerPagerButtons();
+  ctvLog(
+    "pager found -> prev:",
+    !!pager0.prev,
+    "next:",
+    !!pager0.next,
+    "| prev.disabled:",
+    isPagerButtonDisabled(pager0.prev),
+    "next.disabled:",
+    isPagerButtonDisabled(pager0.next)
+  );
+
+  // Rewind to the first page (click "<< Prev" until it's disabled).
+  let guard = 0;
+  let prev = getScreenerPagerButtons().prev;
+  while (prev && !isPagerButtonDisabled(prev) && guard++ < 500) {
+    const sig = screenerPageSignature();
+    prev.click();
+    const changed = await waitForScreenerPageChange(sig);
+    ctvLog("rewind click Prev -> changed:", changed);
+    if (!changed) break;
+    prev = getScreenerPagerButtons().prev;
+  }
+
+  // Walk forward, scraping each page, until "Next >>" is disabled/missing.
+  guard = 0;
+  while (guard++ < 1000) {
+    scrapeCurrentPage();
+    ctvLog("page", guard, "scraped -> total unique tickers:", symbols.length);
+    const next = getScreenerPagerButtons().next;
+    if (!next || isPagerButtonDisabled(next)) {
+      ctvLog("stop: next missing/disabled", { hasNext: !!next });
+      break;
+    }
+    const sig = screenerPageSignature();
+    next.click();
+    const changed = await waitForScreenerPageChange(sig);
+    ctvLog("forward click Next -> changed:", changed);
+    if (!changed) break; // safety: stop if the page didn't actually advance
+  }
+
+  ctvLog("collection done -> tickers:", symbols.length);
+  return addColonNSEtoTickers(symbols);
 }
 
 /**
@@ -784,120 +1085,47 @@ const delay = (t) => {
   return new Promise((res) => setTimeout(res, t));
 };
 
+// Guards against overlapping runs while we're clicking through pages.
+let isCollectingTickers = false;
+
 /**
- * Copies all the tickers on the screen to the clipboard.
+ * Copies all tickers across every page of the screener results to the clipboard.
  */
 async function copyAllTickersOnScreen() {
-  // Get the chart redirect state from the background script
-  chrome.runtime.sendMessage(
-    { message: "getChartRedirectState" },
-    async function (response) {
-      if (response.chartRedirectState) {
-        let allTickersArray = [];
-        let allTags = [];
-        const numberOfPages = getPaginationLength();
-        await goToFirstPage();
+  ctvLog("copyAllTickersOnScreen invoked");
+  if (isCollectingTickers) return;
+  isCollectingTickers = true;
 
-        // Iterate through each page
-        for (let i = 0; i < numberOfPages; i++) {
-          if (i > 0) {
-            await delay(200);
-          }
-          // Capture immutable snapshots (text + href) for this page
-          allTags.push(
-            Array.from(
-              document.querySelectorAll(
-                'a[href^="https://in.tradingview.com/chart/?symbol=NSE:"]'
-              )
-            ).map((a) => ({ text: (a.textContent || "").trim(), href: a.href }))
-          );
+  const button = document.getElementById(GLOBAL_COPY_BTN_ID);
+  const labelSpan = button ? button.querySelector("span > span") : null;
+  const originalLabel = labelSpan ? labelSpan.textContent : null;
+  if (labelSpan) labelSpan.textContent = "Collecting…";
 
-          nextPage();
-        }
-
-        // Flatten the array of page snapshots
-        const allTickers = allTags.flat();
-
-        // Extract the symbols from the URLs and add them to the tickers array
-        allTickers.forEach((ticker) => {
-          allTickersArray.push(
-            replaceSpecialCharsWithUnderscore(
-              extracrtSymbolFromURL(ticker.href)
-            )
-          );
-        });
-
-        // Add "NSE:" prefix to the tickers
-        allTickersArray = addColonNSEtoTickers(allTickersArray);
-        if (ENABLE_TICKER_SYMBOL_LOGS) {
-          console.log(
-            "Element->Symbol",
-            allTickers.map((el) => ({
-              text: el.text,
-              href: el.href,
-              symbol: extracrtSymbolFromURL(el.href),
-            }))
-          );
-        }
-
-        // Create a fake textarea to copy the tickers to the clipboard
-        createFakeTextAreaToCopyText(
-          [...removeDuplicateTickers(allTickersArray)].join(", ")
-        );
-        replaceButtonText("add-to-watchlist");
-        return;
-      }
-
-      let allTickersArray = [];
-      let allTags = [];
-      const numberOfPages = getPaginationLength();
-      await goToFirstPage();
-
-      // Iterate through each page
-      for (let i = 0; i < numberOfPages; i++) {
-        if (i > 0) {
-          await delay(200);
-        }
-
-        // Capture immutable snapshots (text + href) for this page
-        allTags.push(
-          Array.from(document.querySelectorAll('a[href^="/stocks-new"]')).map(
-            (a) => ({ text: (a.textContent || "").trim(), href: a.href })
-          )
-        );
-
-        nextPage();
-      }
-      // Flatten the array of page snapshots
-      const allTickers = allTags.flat();
-      // Extract the symbols from the URLs and add them to the tickers array
-      allTickers.forEach((ticker) => {
-        allTickersArray.push(
-          replaceSpecialCharsWithUnderscore(
-            extractSymbolFromTradingViewURL(ticker.href)
-          )
-        );
-      });
-      // Add "NSE:" prefix to the tickers
-      allTickersArray = addColonNSEtoTickers(allTickersArray);
-      if (ENABLE_TICKER_SYMBOL_LOGS) {
-        console.log(
-          "Element->Symbol",
-          allTickers.map((el) => ({
-            text: el.text,
-            href: el.href,
-            symbol: extractSymbolFromTradingViewURL(el.href),
-          }))
-        );
-      }
-
-      // Create a fake textarea to copy the tickers to the clipboard
-      createFakeTextAreaToCopyText(
-        [...removeDuplicateTickers(allTickersArray)].join(", ")
-      );
-      replaceButtonText("add-to-watchlist");
+  try {
+    const tickers = removeDuplicateTickers(
+      await collectScreenerTickersAcrossPages()
+    );
+    if (labelSpan && originalLabel !== null) {
+      labelSpan.textContent = originalLabel;
     }
-  );
+    if (!tickers.length) {
+      ctvLog("nothing to copy (0 tickers)");
+      return;
+    }
+
+    createFakeTextAreaToCopyText(tickers.join(", "));
+    ctvLog("copied", tickers.length, "tickers to clipboard");
+    replaceButtonText(GLOBAL_COPY_BTN_ID);
+  } catch (e) {
+    if (labelSpan && originalLabel !== null) {
+      labelSpan.textContent = originalLabel;
+    }
+    try {
+      console.error("copyAllTickersOnScreen failed", e);
+    } catch (_) {}
+  } finally {
+    isCollectingTickers = false;
+  }
 }
 
 /**
@@ -907,9 +1135,13 @@ async function copyAllTickersOnScreen() {
 function replaceButtonText(buttonId) {
   const button = document.getElementById(buttonId);
   if (!button) return;
+  // Remember the original (branded) markup so we can restore the logos after.
+  if (!button.dataset.ctvOriginalHtml) {
+    button.dataset.ctvOriginalHtml = button.innerHTML;
+  }
   button.innerHTML = "Copied to clipboard 📋";
   setTimeout(() => {
-    button.innerHTML = "Copy to TradingView";
+    button.innerHTML = button.dataset.ctvOriginalHtml;
   }, 2000);
 }
 
@@ -944,70 +1176,49 @@ function downloadCSV(filename, rows) {
   URL.revokeObjectURL(url);
 }
 
-// Collect tickers exactly like copyAllTickersOnScreen but return snapshots and tickers
+// Collect tickers across every page, returning per-ticker snapshots (text +
+// href) alongside the deduped NSE-prefixed ticker list. Used by the CSV export.
 async function collectAllTickersSnapshots() {
-  return new Promise((resolve) => {
-    chrome.runtime.sendMessage(
-      { message: "getChartRedirectState" },
-      async function (response) {
-        let allTags = [];
-        let allTickersArray = [];
-        const numberOfPages = getPaginationLength();
+  const seen = new Set();
+  const tickers = [];
+  const snapshots = [];
 
-        if (response.chartRedirectState) {
-          for (let i = 0; i < numberOfPages; i++) {
-            if (i > 0) await delay(200);
-            allTags.push(
-              Array.from(
-                document.querySelectorAll(
-                  'a[href^="https://in.tradingview.com/chart/?symbol=NSE:"]'
-                )
-              ).map((a) => ({
-                text: (a.textContent || "").trim(),
-                href: a.href,
-              }))
-            );
-            nextPage();
-          }
-          const allTickers = allTags.flat();
-          allTickers.forEach((ticker) => {
-            allTickersArray.push(
-              replaceSpecialCharsWithUnderscore(
-                extracrtSymbolFromURL(ticker.href)
-              )
-            );
-          });
-        } else {
-          for (let i = 0; i < numberOfPages; i++) {
-            if (i > 0) await delay(200);
-            allTags.push(
-              Array.from(
-                document.querySelectorAll('a[href^="/stocks-new"]')
-              ).map((a) => ({
-                text: (a.textContent || "").trim(),
-                href: a.href,
-              }))
-            );
-            nextPage();
-          }
-          const allTickers = allTags.flat();
-          allTickers.forEach((ticker) => {
-            allTickersArray.push(
-              replaceSpecialCharsWithUnderscore(
-                extractSymbolFromTradingViewURL(ticker.href)
-              )
-            );
-          });
-        }
+  const scrapeCurrentPage = () => {
+    document.querySelectorAll("a[data-symbol]").forEach((a) => {
+      const raw = a.getAttribute("data-symbol");
+      if (!raw) return;
+      const key = replaceSpecialCharsWithUnderscore(raw);
+      if (seen.has(key)) return;
+      seen.add(key);
+      tickers.push(`NSE:${key}`);
+      snapshots.push({ text: (a.textContent || "").trim(), href: a.href });
+    });
+  };
 
-        allTickersArray = addColonNSEtoTickers(allTickersArray);
-        resolve({
-          snapshots: allTags.flat(),
-          tickers: removeDuplicateTickers(allTickersArray),
-        });
-      }
-    );
-  });
+  // Rewind to the first page.
+  let guard = 0;
+  let prev = getScreenerPagerButtons().prev;
+  while (prev && !isPagerButtonDisabled(prev) && guard++ < 500) {
+    const sig = screenerPageSignature();
+    prev.click();
+    const changed = await waitForScreenerPageChange(sig);
+    if (!changed) break;
+    prev = getScreenerPagerButtons().prev;
+  }
+
+  // Walk forward across all pages.
+  guard = 0;
+  while (guard++ < 1000) {
+    scrapeCurrentPage();
+    const next = getScreenerPagerButtons().next;
+    if (!next || isPagerButtonDisabled(next)) break;
+    const sig = screenerPageSignature();
+    next.click();
+    const changed = await waitForScreenerPageChange(sig);
+    if (!changed) break;
+  }
+
+  return { snapshots, tickers };
 }
 
 // Download all tickers as CSV
@@ -1042,50 +1253,6 @@ async function downloadAllTickersAsCSV() {
   replaceButtonText("download-csv");
 }
 
-// Add shortcut checkbox next to buttons
-function addShortcutCheckbox() {
-  const screenerButtons = document.getElementsByClassName(screenerButtonsClass);
-  if (screenerButtons.length === 0) return;
-  const parent = screenerButtons[0];
-  if (document.getElementById(SHORTCUT_CHECKBOX_ID)) return;
-  const label = document.createElement("label");
-  label.style.marginLeft = "8px";
-  const cb = document.createElement("input");
-  cb.type = "checkbox";
-  cb.id = SHORTCUT_CHECKBOX_ID;
-  cb.style.marginRight = "4px";
-  label.appendChild(cb);
-  label.appendChild(
-    document.createTextNode("Enable shortcut (Cmd/Ctrl+Shift+C)")
-  );
-  parent.appendChild(label);
-  cb.addEventListener("change", () => {
-    enableShortcutCopyState = cb.checked;
-    chrome.storage.sync.set({
-      [STORAGE_KEY_ENABLE_SHORTCUT]: enableShortcutCopyState,
-    });
-  });
-}
-
-// Initialize shortcut state and keybinding
-function initShortcutCheckbox() {
-  chrome.storage.sync.get([STORAGE_KEY_ENABLE_SHORTCUT], (res) => {
-    enableShortcutCopyState = Boolean(res[STORAGE_KEY_ENABLE_SHORTCUT]);
-    const cb = document.getElementById(SHORTCUT_CHECKBOX_ID);
-    if (cb) cb.checked = enableShortcutCopyState;
-  });
-
-  window.addEventListener("keydown", (e) => {
-    if (!enableShortcutCopyState) return;
-    const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
-    const mod = isMac ? e.metaKey : e.ctrlKey;
-    if (mod && e.shiftKey && (e.key === "C" || e.key === "c")) {
-      e.preventDefault();
-      copyAllTickersOnScreen();
-    }
-  });
-}
-
 /**
  * Removes duplicate tickers from an array.
  * @param {string[]} tickers - The array of tickers.
@@ -1112,52 +1279,6 @@ function addColonNSEtoTickers(tickers) {
 function replaceSpecialCharsWithUnderscore(ticker) {
   return ticker.replace(/[^a-zA-Z0-9]/g, "_");
 }
-
-/**
- * Adds copy buttons to the TradingView charts.
- */
-const addCopyBtOnTradingView = () => {
-  const copyBts = document.querySelectorAll('div[title="Copy widget"]');
-  copyBts.forEach((copyBt) => {
-    copyBt.style.fontSize = "20px";
-
-    // Replace the original element with a clone to remove all event listeners
-    const newCopyBt = copyBt.cloneNode(true);
-    copyBt.parentNode.replaceChild(newCopyBt, copyBt);
-
-    newCopyBt.onclick = (e) => {
-      e.stopPropagation();
-      e.preventDefault();
-      const tables =
-        newCopyBt.parentNode.parentNode.parentNode.parentNode.parentNode.parentNode.querySelector(
-          "table"
-        );
-      const allTickers = tables.querySelectorAll(
-        'a[href^="https://in.tradingview.com/chart/?symbol=NSE:"]'
-      );
-      let allTickersArray = [];
-
-      allTickers.forEach((ticker) => {
-        allTickersArray.push(
-          replaceSpecialCharsWithUnderscore(ticker.href.substring(45))
-        );
-      });
-
-      allTickersArray = addColonNSEtoTickers(allTickersArray);
-      createFakeTextAreaToCopyText(
-        removeDuplicateTickers(allTickersArray).join(",")
-      );
-
-      // Use the existing button update logic instead of alert
-      alert("Copied to clipboard 📋");
-
-      return false;
-    };
-  });
-};
-
-// Add copy buttons to the TradingView charts
-addCopyBtOnTradingView();
 
 /**
  * Removes the ".html" extension from a ticker.

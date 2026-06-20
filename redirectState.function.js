@@ -171,3 +171,13 @@ function updateHoverChartBeta() {
 
 document.addEventListener("DOMContentLoaded", attachHoverChartBeta);
 document.addEventListener("DOMContentLoaded", updateHoverChartBeta);
+
+// Show the correct modifier key for the platform (Cmd on macOS, Ctrl elsewhere).
+function updateShortcutComboLabel() {
+  var el = document.getElementById("shortcut-combo");
+  if (!el) return;
+  var isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+  el.textContent = (isMac ? "Cmd" : "Ctrl") + "+Shift+C";
+}
+
+document.addEventListener("DOMContentLoaded", updateShortcutComboLabel);

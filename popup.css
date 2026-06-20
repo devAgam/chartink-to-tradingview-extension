@@ -18,6 +18,13 @@ h1 {
   text-align: left;
   margin-top: 0;
 }
+
+.hint {
+  font-size: 11px;
+  opacity: 0.6;
+  text-align: left;
+  margin: -6px 0 10px 28px;
+}
 .checkbox-container {
   display: block;
   position: relative;
